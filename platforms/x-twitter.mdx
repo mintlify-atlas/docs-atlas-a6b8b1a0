@@ -1,0 +1,524 @@
+---
+title: 'X (Twitter)'
+description: 'X (formerly Twitter) platform integration and capabilities'
+icon: 'x-twitter'
+---
+
+## Overview
+
+X (formerly Twitter) is a real-time conversation platform with over 500 million active users. The Click Creators Scraper Client supports X for accessing professional networks, thought leaders, and engaged communities around news, tech, and culture.
+
+<Info>
+X platform integration is currently active and available for creating scraping jobs.
+</Info>
+
+## Platform Status
+
+<CardGroup cols={2}>
+  <Card title="Current Status" icon="check-circle">
+    **Active**
+    
+    X (Twitter) platform is enabled for job creation and configuration.
+  </Card>
+  
+  <Card title="Platform Type" icon="x-twitter">
+    **Professional Network**
+    
+    Real-time news, conversations, and professional networking.
+  </Card>
+</CardGroup>
+
+## Platform Configuration
+
+### Platform Identifier
+
+```typescript
+platform: 'x'
+```
+
+### Display Configuration
+
+```typescript
+x: {
+  label: 'X (Twitter)',
+  icon: '𝕏',
+  color: '#000000'
+}
+```
+
+The X platform uses a black color scheme and the distinctive X logo for visual identification throughout the UI.
+
+## Scraping Capabilities
+
+### What Can Be Scraped
+
+<CardGroup cols={2}>
+  <Card title="Follower Networks" icon="users">
+    Extract follower and following lists from X accounts
+  </Card>
+  
+  <Card title="Profile Information" icon="user">
+    Handle, display name, bio, location, website
+  </Card>
+  
+  <Card title="Engagement Metrics" icon="chart-line">
+    Follower count, following count, tweet count, verified status
+  </Card>
+  
+  <Card title="Community Insights" icon="users-rectangle">
+    Interest-based communities, lists, and conversation participation
+  </Card>
+</CardGroup>
+
+### Data Fields Extracted
+
+X scraping collects comprehensive user profile data:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | Text | X user ID |
+| `username` | Text | X handle (without @) |
+| `full_name` | Text | Display name |
+| `follower_count` | Integer | Number of followers |
+| `following_count` | Integer | Number of accounts following |
+| `tweet_count` | Integer | Total tweets posted |
+| `is_verified` | Boolean | Verification badge status (blue checkmark) |
+| `biography` | Text | Profile bio text |
+| `location` | Text | User-provided location |
+| `website` | Text | Profile website URL |
+| `detected_gender` | Text | Gender detection result |
+| `account_created` | Date | Account creation date |
+
+## Platform-Specific Features
+
+### X Audience Characteristics
+
+<Note>
+X users tend to be professionals, news-conscious individuals, and active participants in real-time conversations. Ideal for B2B, tech, and thought leadership campaigns.
+</Note>
+
+**Key Demographics:**
+- **Age Range**: Primarily 25-49 years old
+- **Professional Focus**: Business professionals, journalists, tech workers
+- **Content Preference**: News, analysis, real-time updates, threads
+- **Engagement**: High for trending topics and thoughtful discussions
+
+### X-Specific Workflow
+
+<Steps>
+  <Step title="Create X Job">
+    Navigate to Configure page and select "X" as platform
+    
+    ```typescript
+    {
+      influencer_name: "Tech Thought Leaders Campaign",
+      platform: "x",
+      num_vas: 60,
+      airtable_base_id: "appXCampaign"
+    }
+    ```
+  </Step>
+  
+  <Step title="Identify Target Accounts">
+    Find X accounts in your niche:
+    - Industry thought leaders
+    - Professional communities
+    - News and media accounts
+    - Tech influencers
+  </Step>
+  
+  <Step title="Extract Follower Data">
+    Scrape engaged followers from target accounts
+    - Professionals in specific industries
+    - Active conversation participants
+    - Decision-makers and influencers
+  </Step>
+  
+  <Step title="Campaign Distribution">
+    Distribute to VAs with X-specific messaging strategy (professional tone)
+  </Step>
+</Steps>
+
+## Configuration Options
+
+### Creating an X Scraping Job
+
+```typescript
+interface XJobConfig {
+  influencer_name: string;   // Account or campaign name
+  platform: 'x';             // Platform identifier
+  airtable_base_id: string;  // Airtable workspace URL
+  num_vas: number;           // Number of VAs
+  status: 'active';          // Initial status
+}
+```
+
+### Job Configuration Details
+
+<CardGroup cols={1}>
+  <Card title="X Job Setup" icon="clipboard-list">
+    - **Influencer Name**: Target X account or campaign identifier
+    - **Platform**: Select "X" from dropdown
+    - **Number of VAs**: Adjust based on campaign size (typically 40-80)
+    - **Airtable Base**: X-specific workspace for campaign management
+  </Card>
+</CardGroup>
+
+## Use Cases
+
+### Ideal Scenarios for X
+
+<Tabs>
+  <Tab title="B2B Marketing">
+    **Best For:**
+    - SaaS product launches
+    - Professional service promotion
+    - Thought leadership campaigns
+    - Industry event promotion
+    
+    **Audience Type:**
+    - Decision-makers
+    - Industry professionals
+    - Tech early adopters
+    - Business executives
+  </Tab>
+  
+  <Tab title="Thought Leadership">
+    **Best For:**
+    - Personal brand building
+    - Expert positioning
+    - Industry insights sharing
+    - Professional networking
+    
+    **Benefits:**
+    - Access to influential networks
+    - Real-time conversation participation
+    - Professional credibility building
+    - Industry-specific targeting
+  </Tab>
+  
+  <Tab title="News & Media">
+    **Best For:**
+    - Breaking news distribution
+    - Media coverage amplification
+    - Journalist outreach
+    - Public relations campaigns
+    
+    **Advantages:**
+    - Real-time engagement
+    - News-oriented audience
+    - Viral potential for timely content
+    - Direct access to journalists and media
+  </Tab>
+</Tabs>
+
+## Platform Advantages
+
+### Why Choose X
+
+<CardGroup cols={2}>
+  <Card title="Professional Network" icon="briefcase">
+    Access to business professionals, decision-makers, and industry leaders
+  </Card>
+  
+  <Card title="Real-Time Engagement" icon="bolt">
+    Participate in live conversations around trending topics and events
+  </Card>
+  
+  <Card title="Thought Leadership" icon="lightbulb">
+    Platform rewards insightful content and expert positioning
+  </Card>
+  
+  <Card title="B2B Focus" icon="building">
+    Higher concentration of business professionals than visual platforms
+  </Card>
+</CardGroup>
+
+## Limitations and Considerations
+
+### API and Access Changes
+
+<Warning>
+X has undergone significant API changes. Scraping capabilities may be affected by platform policy updates and rate limiting.
+</Warning>
+
+### Platform-Specific Limitations
+
+<CardGroup cols={2}>
+  <Card title="API Restrictions" icon="lock">
+    X API access requires authentication and may have strict rate limits
+  </Card>
+  
+  <Card title="Rate Limiting" icon="gauge">
+    Aggressive rate limiting, especially for follower list endpoints
+  </Card>
+  
+  <Card title="Verification Changes" icon="badge-check">
+    Blue checkmark now indicates subscription status, not verification
+  </Card>
+  
+  <Card title="Account Suspension Risk" icon="triangle-exclamation">
+    Aggressive scraping can lead to temporary account restrictions
+  </Card>
+</CardGroup>
+
+### Best Practices
+
+<Steps>
+  <Step title="Respect Rate Limits">
+    Implement substantial delays between API calls (15-minute windows)
+  </Step>
+  
+  <Step title="Target Quality Over Quantity">
+    Focus on highly engaged, relevant accounts rather than large follower counts
+  </Step>
+  
+  <Step title="Professional Messaging">
+    X users expect professional, value-driven outreach - avoid spammy tactics
+  </Step>
+  
+  <Step title="Monitor Policy Changes">
+    Stay updated on X's evolving API policies and terms of service
+  </Step>
+  
+  <Step title="Use Authenticated Accounts">
+    Ensure scraping accounts have proper authentication and good standing
+  </Step>
+</Steps>
+
+## Example Campaign
+
+### SaaS Product Launch on X
+
+**Scenario:** Launch a developer productivity tool targeting software engineers and tech leaders
+
+<Steps>
+  <Step title="Identify Tech Influencers">
+    Find active X accounts in developer community:
+    - @tech_lead (500K followers)
+    - @devrel_expert (200K followers)
+    - @startup_cto (150K followers)
+  </Step>
+  
+  <Step title="Create X Job">
+    ```typescript
+    {
+      influencer_name: "DevTool Launch Q1 2026",
+      platform: "x",
+      num_vas: 40,
+      airtable_base_id: "appDevToolX"
+    }
+    ```
+  </Step>
+  
+  <Step title="Extract Developer Audience">
+    - Target followers with developer-related keywords in bio
+    - Filter for accounts with tech-focused tweets
+    - Prioritize accounts with active engagement
+  </Step>
+  
+  <Step title="Professional Outreach">
+    - 40 VAs handling 100 high-quality profiles each (4,000 total)
+    - Value-driven DMs highlighting specific pain points
+    - Offer beta access or exclusive early pricing
+  </Step>
+</Steps>
+
+**Expected Results:**
+- 50,000+ developer profiles scraped
+- 4,000 highly targeted outreach contacts
+- 10-15% response rate (quality over quantity)
+- High conversion potential due to professional targeting
+
+## API Integration
+
+### X-Specific Endpoints
+
+X uses the same API structure with platform-specific parameters:
+
+```bash
+POST /api/scrape-followers
+{
+  "accounts": ["x_handle"],
+  "platform": "x",
+  "targetGender": "male"
+}
+```
+
+**Response includes X-specific metrics:**
+```json
+{
+  "success": true,
+  "data": {
+    "totalScraped": 1500,
+    "totalFiltered": 800,
+    "platformMetrics": {
+      "avgTweetCount": 2500,
+      "avgFollowerCount": 1200,
+      "verifiedAccounts": 120
+    }
+  }
+}
+```
+
+<Note>
+X API responses may include additional metadata like account creation date, location, and website URLs for enhanced targeting.
+</Note>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="X API Authentication Failed">
+    **Possible Causes:**
+    - API credentials expired or invalid
+    - Account suspended or restricted
+    - API access tier insufficient
+    
+    **Solutions:**
+    - Verify API keys in environment variables
+    - Check X Developer Portal for account status
+    - Ensure proper API tier subscription (Free, Basic, Pro)
+    - Regenerate API tokens if expired
+  </Accordion>
+  
+  <Accordion title="Rate Limit Exceeded">
+    **Possible Causes:**
+    - Too many requests in 15-minute window
+    - Insufficient delay between scraping sessions
+    - Multiple concurrent scraping jobs
+    
+    **Solutions:**
+    - Wait for rate limit reset (15 minutes)
+    - Implement exponential backoff
+    - Reduce scraping frequency
+    - Upgrade API tier for higher limits
+  </Accordion>
+  
+  <Accordion title="Follower List Incomplete">
+    **Possible Causes:**
+    - Account has too many followers (API pagination limits)
+    - Some followers are private or restricted
+    - API returning partial results
+    
+    **Solutions:**
+    - Implement pagination handling for large follower lists
+    - Accept that some accounts may not be accessible
+    - Focus on most recent or most engaged followers
+  </Accordion>
+  
+  <Accordion title="Low-Quality Profile Data">
+    **Possible Causes:**
+    - Many bot or spam accounts in follower list
+    - Inactive or abandoned accounts
+    - Minimal profile information provided by users
+    
+    **Solutions:**
+    - Filter by account age (exclude accounts created recently)
+    - Check tweet count (exclude accounts with less than 10 tweets)
+    - Verify follower/following ratio for authenticity
+    - Use bio keywords to filter for relevant professionals
+  </Accordion>
+</AccordionGroup>
+
+## Comparison with Other Platforms
+
+### X vs Instagram vs TikTok
+
+| Feature | X (Twitter) | Instagram | TikTok |
+|---------|-------------|-----------|--------|
+| **Primary Content** | Text, threads, news | Photos, videos | Short videos |
+| **User Base** | 500M+ (professionals) | 2B+ (broad) | 1B+ (younger) |
+| **Best For** | B2B, thought leadership | Visual brands | Viral campaigns |
+| **Age Demographic** | 25-49 primary | 18-45 broad | 16-30 primary |
+| **Professional Use** | Very High | Medium | Low |
+| **Real-Time** | Highest | Low | Medium |
+| **Engagement Type** | Conversations, debates | Likes, comments | Views, shares |
+| **API Accessibility** | Restricted (paid tiers) | Limited | Limited |
+
+### When to Use X
+
+<CardGroup cols={2}>
+  <Card title="Choose X When..." icon="x-twitter">
+    - B2B or professional audience
+    - Thought leadership is goal
+    - Real-time engagement needed
+    - Tech/startup/business focus
+    - News or media-related campaigns
+  </Card>
+  
+  <Card title="Choose Instagram When..." icon="instagram">
+    - Visual content is central
+    - B2C consumer products
+    - Lifestyle or fashion brands
+    - Younger demographic (18-35)
+  </Card>
+</CardGroup>
+
+## Advanced Strategies
+
+### List-Based Targeting
+
+X Lists are curated groups of accounts around specific topics:
+
+<Steps>
+  <Step title="Identify Relevant Lists">
+    Find public lists like "Tech Leaders," "SaaS Founders," "AI Researchers"
+  </Step>
+  
+  <Step title="Extract List Members">
+    Scrape accounts from these pre-curated, high-quality lists
+  </Step>
+  
+  <Step title="Cross-Reference">
+    Combine multiple related lists for comprehensive coverage
+  </Step>
+</Steps>
+
+### Conversation Targeting
+
+Engage with users participating in specific conversations:
+
+```typescript
+// Example: Target users engaging with specific topics
+const topics = [
+  'developer tools',
+  'productivity software',
+  'engineering culture'
+];
+
+// Scrape users who recently tweeted or engaged with these topics
+```
+
+### Follower Quality Filtering
+
+X has many bot accounts - implement quality filters:
+
+```typescript
+interface QualityFilters {
+  minFollowers: 100;           // Exclude very small accounts
+  maxFollowing: 5000;          // Exclude potential spam accounts
+  minTweets: 50;               // Require some activity
+  accountAge: '6 months';      // Exclude very new accounts
+  followingFollowerRatio: 2;   // Reasonable ratio
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Create X Job" icon="plus" href="/quickstart">
+    Set up your first X (Twitter) scraping campaign
+  </Card>
+  
+  <Card title="B2B Best Practices" icon="briefcase" href="/guides/managing-campaigns">
+    Learn strategies for professional outreach on X
+  </Card>
+  
+  <Card title="API Configuration" icon="code" href="/platforms/x-twitter">
+    Configure X API credentials for scraping
+  </Card>
+  
+  <Card title="Multi-Platform Strategy" icon="layer-group" href="/guides/multi-platform">
+    Combine X with other platforms for maximum reach
+  </Card>
+</CardGroup>

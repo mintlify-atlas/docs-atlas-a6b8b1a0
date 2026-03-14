@@ -1,0 +1,496 @@
+---
+title: 'Job Statistics'
+description: 'Retrieve aggregated statistics for scraping jobs'
+---
+
+## Overview
+
+Get detailed statistics about scraping jobs including username counts, assignments, and scrape results. The library provides both job-based and base-based statistics queries.
+
+## Get Statistics by Base ID (Recommended)
+
+### Function Signature
+
+```typescript
+export async function getJobStatisticsByBaseId(
+  baseId: string
+): Promise<JobStatistics | null>
+```
+
+Get job statistics using the Airtable base ID for accurate multi-tenant counts. This is the recommended method for retrieving statistics.
+
+### Parameters
+
+<ParamField path="baseId" type="string" required>
+  The Airtable base ID (base_id) for the job. This ensures accurate multi-tenant data isolation.
+</ParamField>
+
+### Response
+
+Returns a `JobStatistics` object on success, or `null` if an error occurs.
+
+<ResponseField name="totalUsernames" type="number">
+  Total number of usernames associated with this base_id
+</ResponseField>
+
+<ResponseField name="usedUsernames" type="number">
+  Number of usernames that have been marked as used
+</ResponseField>
+
+<ResponseField name="availableUsernames" type="number">
+  Number of usernames still available for use
+</ResponseField>
+
+<ResponseField name="totalAssignments" type="number">
+  Total number of daily assignments created for this base_id
+</ResponseField>
+
+<ResponseField name="totalScrapeResults" type="number">
+  Total number of scrape results collected for this base_id
+</ResponseField>
+
+### Examples
+
+<CodeGroup>
+```typescript Basic Usage
+import { getJobStatisticsByBaseId } from '@/lib/scraping-jobs';
+
+const stats = await getJobStatisticsByBaseId('appXXXXXXXXXXXXXX');
+
+if (stats) {
+  console.log('Total usernames:', stats.totalUsernames);
+  console.log('Available:', stats.availableUsernames);
+  console.log('Used:', stats.usedUsernames);
+  console.log('Assignments:', stats.totalAssignments);
+  console.log('Scrape results:', stats.totalScrapeResults);
+}
+```
+
+```typescript With Job Data
+import { getJobById, getJobStatisticsByBaseId } from '@/lib/scraping-jobs';
+
+const job = await getJobById(jobId);
+
+if (job) {
+  const baseId = job.airtable_base_id || job.base_id;
+  const stats = baseId
+    ? await getJobStatisticsByBaseId(baseId)
+    : null;
+
+  if (stats) {
+    console.log(`${job.influencer_name} statistics:`);
+    console.log(`  Available: ${stats.availableUsernames}`);
+    console.log(`  Used: ${stats.usedUsernames}`);
+  }
+}
+```
+
+```typescript React Component
+import { getJobStatisticsByBaseId } from '@/lib/scraping-jobs';
+import { useEffect, useState } from 'react';
+import type { JobStatistics } from '@/types/scraping-jobs';
+
+function JobStatsCard({ baseId }: { baseId: string }) {
+  const [stats, setStats] = useState<JobStatistics | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchStats() {
+      const data = await getJobStatisticsByBaseId(baseId);
+      setStats(data);
+      setLoading(false);
+    }
+    fetchStats();
+  }, [baseId]);
+
+  if (loading) return <div>Loading stats...</div>;
+  if (!stats) return <div>No stats available</div>;
+
+  return (
+    <div className="stats-card">
+      <div className="stat">
+        <span className="label">Total Usernames</span>
+        <span className="value">{stats.totalUsernames}</span>
+      </div>
+      <div className="stat">
+        <span className="label">Available</span>
+        <span className="value">{stats.availableUsernames}</span>
+      </div>
+      <div className="stat">
+        <span className="label">Used</span>
+        <span className="value">{stats.usedUsernames}</span>
+      </div>
+      <div className="stat">
+        <span className="label">Assignments</span>
+        <span className="value">{stats.totalAssignments}</span>
+      </div>
+      <div className="stat">
+        <span className="label">Scrape Results</span>
+        <span className="value">{stats.totalScrapeResults}</span>
+      </div>
+    </div>
+  );
+}
+```
+</CodeGroup>
+
+---
+
+## Get Statistics by Job ID (Deprecated)
+
+### Function Signature
+
+```typescript
+/**
+ * @deprecated Use getJobStatisticsByBaseId for accurate multi-tenant counts
+ */
+export async function getJobStatistics(
+  jobId: string
+): Promise<JobStatistics | null>
+```
+
+<Note>
+This function is deprecated. Use `getJobStatisticsByBaseId` instead for accurate multi-tenant data isolation.
+</Note>
+
+Get job statistics using the job_id. This method may not reflect accurate multi-tenant data isolation.
+
+### Parameters
+
+<ParamField path="jobId" type="string" required>
+  The UUID of the job
+</ParamField>
+
+### Response
+
+Returns a `JobStatistics` object on success, or `null` if an error occurs.
+
+### Example
+
+```typescript
+import { getJobStatistics } from '@/lib/scraping-jobs';
+
+// Deprecated - use getJobStatisticsByBaseId instead
+const stats = await getJobStatistics(jobId);
+```
+
+---
+
+## Get Job with Statistics
+
+### Function Signature
+
+```typescript
+export async function getJobWithStats(
+  jobId: string
+): Promise<ScrapingJobWithStats | null>
+```
+
+Retrieve a single job with its statistics in one call.
+
+### Parameters
+
+<ParamField path="jobId" type="string" required>
+  The UUID of the job to retrieve
+</ParamField>
+
+### Response
+
+Returns a `ScrapingJobWithStats` object containing both job data and statistics.
+
+<Expandable title="ScrapingJobWithStats fields">
+  <ResponseField name="job_id" type="string">
+    Unique identifier for the job
+  </ResponseField>
+  
+  <ResponseField name="influencer_name" type="string">
+    Name of the influencer
+  </ResponseField>
+  
+  <ResponseField name="platform" type="Platform">
+    Social media platform
+  </ResponseField>
+  
+  <ResponseField name="airtable_base_id" type="string">
+    Airtable base ID
+  </ResponseField>
+  
+  <ResponseField name="base_id" type="string">
+    Multi-tenant isolation key
+  </ResponseField>
+  
+  <ResponseField name="num_vas" type="number | null">
+    Number of VAs assigned
+  </ResponseField>
+  
+  <ResponseField name="status" type="JobStatus">
+    Current job status
+  </ResponseField>
+  
+  <ResponseField name="created_at" type="string">
+    Creation timestamp
+  </ResponseField>
+  
+  <ResponseField name="updated_at" type="string | null">
+    Last update timestamp
+  </ResponseField>
+  
+  <ResponseField name="stats" type="JobStatistics">
+    Aggregated statistics (see above for fields)
+  </ResponseField>
+</Expandable>
+
+### Example
+
+```typescript
+import { getJobWithStats } from '@/lib/scraping-jobs';
+
+const jobWithStats = await getJobWithStats(jobId);
+
+if (jobWithStats) {
+  console.log(`Job: ${jobWithStats.influencer_name}`);
+  console.log(`Platform: ${jobWithStats.platform}`);
+  console.log(`Status: ${jobWithStats.status}`);
+  console.log(`Usernames: ${jobWithStats.stats.totalUsernames}`);
+  console.log(`Available: ${jobWithStats.stats.availableUsernames}`);
+}
+```
+
+---
+
+## Calculating Additional Metrics
+
+You can derive additional metrics from the statistics:
+
+### Usage Percentage
+
+```typescript
+import { getJobStatisticsByBaseId } from '@/lib/scraping-jobs';
+
+const stats = await getJobStatisticsByBaseId(baseId);
+
+if (stats && stats.totalUsernames > 0) {
+  const usagePercentage = (stats.usedUsernames / stats.totalUsernames) * 100;
+  console.log(`Usage: ${usagePercentage.toFixed(1)}%`);
+}
+```
+
+### Availability Check
+
+```typescript
+import { getJobStatisticsByBaseId } from '@/lib/scraping-jobs';
+
+const stats = await getJobStatisticsByBaseId(baseId);
+
+if (stats) {
+  const hasAvailableUsernames = stats.availableUsernames > 0;
+  
+  if (!hasAvailableUsernames) {
+    console.warn('No usernames available for assignment');
+  }
+}
+```
+
+### Assignment Ratio
+
+```typescript
+import { getJobStatisticsByBaseId } from '@/lib/scraping-jobs';
+
+const stats = await getJobStatisticsByBaseId(baseId);
+
+if (stats && stats.totalUsernames > 0) {
+  const assignmentRatio = stats.totalAssignments / stats.totalUsernames;
+  console.log(`Assignments per username: ${assignmentRatio.toFixed(2)}`);
+}
+```
+
+---
+
+## Real-time Statistics Dashboard
+
+Here's an example of building a real-time statistics dashboard:
+
+```typescript
+import { getJobsByPlatform, getJobStatisticsByBaseId } from '@/lib/scraping-jobs';
+import { useEffect, useState } from 'react';
+
+function PlatformStatsDashboard({ platform }: { platform: Platform }) {
+  const [stats, setStats] = useState<Array<{
+    job: ScrapingJob;
+    stats: JobStatistics;
+  }>>([]);
+
+  useEffect(() => {
+    async function fetchStats() {
+      const jobs = await getJobsByPlatform(platform);
+      
+      const jobsWithStats = await Promise.all(
+        jobs.map(async (job) => {
+          const baseId = job.airtable_base_id || job.base_id;
+          const statistics = baseId
+            ? await getJobStatisticsByBaseId(baseId)
+            : null;
+          
+          return {
+            job,
+            stats: statistics || {
+              totalUsernames: 0,
+              usedUsernames: 0,
+              availableUsernames: 0,
+              totalAssignments: 0,
+              totalScrapeResults: 0
+            }
+          };
+        })
+      );
+      
+      setStats(jobsWithStats);
+    }
+    
+    fetchStats();
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchStats, 30000);
+    return () => clearInterval(interval);
+  }, [platform]);
+
+  const totalStats = stats.reduce(
+    (acc, { stats }) => ({
+      totalUsernames: acc.totalUsernames + stats.totalUsernames,
+      usedUsernames: acc.usedUsernames + stats.usedUsernames,
+      availableUsernames: acc.availableUsernames + stats.availableUsernames,
+      totalAssignments: acc.totalAssignments + stats.totalAssignments,
+      totalScrapeResults: acc.totalScrapeResults + stats.totalScrapeResults
+    }),
+    {
+      totalUsernames: 0,
+      usedUsernames: 0,
+      availableUsernames: 0,
+      totalAssignments: 0,
+      totalScrapeResults: 0
+    }
+  );
+
+  return (
+    <div>
+      <h2>{platform} Platform Statistics</h2>
+      
+      <div className="platform-totals">
+        <h3>Total Across All Jobs</h3>
+        <div>Usernames: {totalStats.totalUsernames}</div>
+        <div>Available: {totalStats.availableUsernames}</div>
+        <div>Used: {totalStats.usedUsernames}</div>
+        <div>Assignments: {totalStats.totalAssignments}</div>
+        <div>Scrape Results: {totalStats.totalScrapeResults}</div>
+      </div>
+
+      <div className="job-stats-list">
+        {stats.map(({ job, stats }) => (
+          <div key={job.job_id}>
+            <h4>{job.influencer_name}</h4>
+            <div>Available: {stats.availableUsernames}</div>
+            <div>Used: {stats.usedUsernames}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+## Error Handling
+
+<Note>
+Statistics functions return `null` instead of throwing errors. Always check the return value.
+</Note>
+
+```typescript
+import { getJobStatisticsByBaseId } from '@/lib/scraping-jobs';
+import { toast } from '@/components/ui/use-toast';
+
+const stats = await getJobStatisticsByBaseId(baseId);
+
+if (!stats) {
+  toast({
+    title: 'Error',
+    description: 'Failed to load statistics',
+    variant: 'destructive'
+  });
+  return;
+}
+
+// Proceed with stats
+console.log('Statistics loaded:', stats);
+```
+
+---
+
+## Multi-Tenant Considerations
+
+<Note>
+Always use `getJobStatisticsByBaseId` for accurate multi-tenant statistics. The job_id-based method is deprecated because it may not correctly isolate tenant data.
+</Note>
+
+Best practice for getting statistics:
+
+```typescript
+import { getJobById, getJobStatisticsByBaseId } from '@/lib/scraping-jobs';
+
+// 1. Get the job to access the base_id
+const job = await getJobById(jobId);
+
+if (!job) {
+  console.error('Job not found');
+  return;
+}
+
+// 2. Use the base_id for statistics
+const baseId = job.airtable_base_id || job.base_id;
+
+if (!baseId) {
+  console.error('No base_id found for job');
+  return;
+}
+
+// 3. Get accurate multi-tenant statistics
+const stats = await getJobStatisticsByBaseId(baseId);
+```
+
+---
+
+## Related Functions
+
+- [`createScrapingJob`](/api/scraping-jobs/create) - Create a new job
+- [`getAllJobs`](/api/scraping-jobs/list) - Retrieve jobs
+- [`getAllJobsWithStats`](/api/scraping-jobs/list#get-jobs-with-statistics) - Get all jobs with stats
+- [`updateJob`](/api/scraping-jobs/update) - Update a job
+
+## Type Definitions
+
+```typescript
+interface JobStatistics {
+  totalUsernames: number;
+  usedUsernames: number;
+  availableUsernames: number;
+  totalAssignments: number;
+  totalScrapeResults: number;
+}
+
+interface ScrapingJobWithStats extends ScrapingJob {
+  stats: JobStatistics;
+}
+
+interface ScrapingJob {
+  job_id: string;
+  influencer_name: string;
+  platform: Platform;
+  airtable_base_id: string;
+  base_id: string;
+  num_vas: number | null;
+  status: JobStatus;
+  created_at: string;
+  updated_at: string | null;
+}
+```

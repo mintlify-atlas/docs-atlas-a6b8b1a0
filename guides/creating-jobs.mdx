@@ -1,0 +1,502 @@
+---
+title: 'Creating Scraping Jobs'
+description: 'Step-by-step guide to creating and configuring scraping jobs for different platforms'
+icon: 'wand-magic-sparkles'
+---
+
+## Overview
+
+Scraping jobs are the core entity in the Click Creators Scraper Client. Each job represents a scraping campaign for a specific influencer on a specific platform (Instagram, TikTok, Threads, or X).
+
+<Note>
+  Each job maintains its own isolated data environment using Airtable base IDs for multi-tenant data separation. This ensures that usernames, assignments, and campaigns for one influencer don't interfere with another.
+</Note>
+
+## Job Structure
+
+Every scraping job consists of:
+
+- **Influencer Name** - The target influencer's name
+- **Platform** - Social media platform (Instagram, TikTok, Threads, X)
+- **Airtable Base** - Dedicated Airtable workspace for this job
+- **Number of VAs** - Virtual assistants assigned to this campaign
+- **Status** - Job state (Active, Paused, or Archived)
+
+## Creating a New Job
+
+### Prerequisites
+
+<Steps>
+  <Step title="Authentication">
+    Ensure you're logged in to the application. See the [Authentication Guide](/guides/authentication) for details.
+  </Step>
+  
+  <Step title="Access to Airtable Workspace">
+    You'll need access to the AIVS Scraper Workspace on Airtable:
+    ```
+    https://airtable.com/workspaces/wspQtCYFXE7T72rkW
+    ```
+  </Step>
+</Steps>
+
+### Step-by-Step Job Creation
+
+<Steps>
+  <Step title="Navigate to Configure Page">
+    After logging in, you'll be automatically redirected to `/configure`, or navigate there manually.
+    
+    The configure page displays the **Create Scraping Campaign** card with a job creation form.
+  </Step>
+
+  <Step title="Enter Influencer Name">
+    In the **Influencer Name** field, enter the name of the influencer you want to scrape:
+    
+    ```typescript
+    // Example values:
+    "Andrew Tate"
+    "MrBeast"
+    "Charli D'Amelio"
+    ```
+    
+    <Tip>
+      Use the influencer's commonly known name. This will be used in the Airtable base naming: "[Influencer]'s [Platform] Campaign"
+    </Tip>
+  </Step>
+
+  <Step title="Select Platform">
+    Choose the social media platform from the dropdown:
+    
+    <Tabs>
+      <Tab title="Instagram">
+        Scrape Instagram followers and engagement data.
+        
+        **Status:** ✅ Fully Available
+      </Tab>
+      
+      <Tab title="TikTok">
+        Scrape TikTok followers and content interactions.
+        
+        **Status:** ✅ Fully Available
+      </Tab>
+      
+      <Tab title="Threads">
+        Scrape Meta's Threads platform followers.
+        
+        **Status:** ✅ Fully Available
+      </Tab>
+      
+      <Tab title="X (Twitter)">
+        Scrape X (formerly Twitter) followers and interactions.
+        
+        **Status:** ✅ Fully Available
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Set Number of VAs">
+    Enter the number of virtual assistants for this campaign:
+    
+    ```
+    Minimum: 1
+    Recommended: 80 (for 14,400 daily profiles = 180 per VA)
+    ```
+    
+    <Note>
+      The system will distribute scraped profiles evenly across the specified number of VAs. For example:
+      - 80 VAs × 180 profiles = 14,400 profiles per campaign
+      - 40 VAs × 360 profiles = 14,400 profiles per campaign
+    </Note>
+  </Step>
+
+  <Step title="Submit Job Form">
+    Click **Create Campaign** button. The button will be disabled until all required fields are filled:
+    
+    ```typescript
+    const isValid = influencer.trim() && 
+                    platform && 
+                    numVAs && 
+                    parseInt(numVAs) >= 1
+    ```
+    
+    Upon submission, the Airtable Link Dialog will appear.
+  </Step>
+</Steps>
+
+## Connecting Airtable Base
+
+<Warning>
+  The Airtable Link Dialog is **non-skippable**. You must create and link an Airtable base before the job can be created.
+</Warning>
+
+### Creating the Airtable Base
+
+<Steps>
+  <Step title="Open Airtable Workspace">
+    Click the external link icon in the dialog to open the AIVS Scraper Workspace:
+    
+    The dialog provides a direct link with the external link icon.
+  </Step>
+
+  <Step title="Create New Base">
+    In the Airtable workspace:
+    1. Click **"Create"**
+    2. Select **"Build an app on your own"**
+    3. A new blank base will be created
+  </Step>
+
+  <Step title="Rename the Base">
+    Rename the base using the suggested format:
+    
+    ```
+    [Influencer Name]'s [Platform] Campaign
+    ```
+    
+    For example:
+    - "Andrew Tate's Instagram Campaign"
+    - "MrBeast's TikTok Campaign"
+    
+    <Tip>
+      The dialog displays the exact naming format you should use based on your job configuration.
+    </Tip>
+  </Step>
+
+  <Step title="Copy Base URL">
+    Once created:
+    1. Copy the URL from your browser's address bar
+    2. The URL should look like: `https://airtable.com/appXXXXXXXXXXXXXX/...`
+    3. Paste it into the **Airtable Base Link** field in the dialog
+  </Step>
+
+  <Step title="Submit Airtable Link">
+    Click **Submit** to link the base to your job.
+    
+    The system validates the URL format:
+    ```typescript
+    const airtablePattern = /^https?:\/\/(airtable\.com|www\.airtable\.com)\/.+/i
+    ```
+    
+    <Warning>
+      Invalid URLs will show an error: "Please enter a valid Airtable URL"
+    </Warning>
+  </Step>
+</Steps>
+
+## Job Setup Progress
+
+After submitting the Airtable link, a progress dialog appears showing the job initialization:
+
+```typescript
+// The progress animation lasts 3 seconds
+// Progress: 0% → 100%
+```
+
+<Note>
+  The progress dialog is cosmetic and provides user feedback during job creation. The actual job is created in the database immediately after Airtable link validation.
+</Note>
+
+### What Happens During Setup
+
+<Steps>
+  <Step title="Job Record Creation">
+    A new record is inserted into the `scraping_jobs` table:
+    
+    ```sql
+    INSERT INTO scraping_jobs (
+      job_id,
+      influencer_name,
+      platform,
+      airtable_base_id,
+      num_vas,
+      status,
+      base_id
+    ) VALUES (...)
+    ```
+  </Step>
+
+  <Step title="Base ID Assignment">
+    The Airtable base ID is used as the `base_id` for multi-tenant data isolation:
+    
+    ```typescript
+    base_id: input.airtable_base_id // Used for RLS filtering
+    ```
+  </Step>
+
+  <Step title="Recents Update">
+    The new job is added to your "Recent Jobs" list in localStorage:
+    
+    ```typescript
+    localStorage.setItem('recentJobs', JSON.stringify(updatedRecents))
+    ```
+  </Step>
+
+  <Step title="Redirect to Dashboard">
+    Upon completion, you're redirected to the platform-specific dashboard:
+    - Instagram jobs → `/instagram-jobs`
+    - TikTok jobs → `/tiktok-jobs`
+    - Threads jobs → `/threads-jobs`
+    - X jobs → `/x-jobs`
+  </Step>
+</Steps>
+
+## Job Configuration
+
+### Supported Platforms
+
+<CardGroup cols={2}>
+  <Card title="Instagram" icon="instagram">
+    **Platform:** `instagram`
+    
+    **Use Cases:**
+    - Follower scraping
+    - Engagement tracking
+    - Profile analysis
+  </Card>
+  
+  <Card title="TikTok" icon="tiktok">
+    **Platform:** `tiktok`
+    
+    **Use Cases:**
+    - Follower extraction
+    - Content interaction tracking
+    - Viral profile identification
+  </Card>
+  
+  <Card title="Threads" icon="threads">
+    **Platform:** `threads`
+    
+    **Use Cases:**
+    - New platform audience building
+    - Cross-platform follower analysis
+  </Card>
+  
+  <Card title="X (Twitter)" icon="x-twitter">
+    **Platform:** `x`
+    
+    **Use Cases:**
+    - Twitter follower scraping
+    - Tweet engagement analysis
+  </Card>
+</CardGroup>
+
+### Job Status Types
+
+<Tabs>
+  <Tab title="Active">
+    **Status:** `active`
+    
+    - Job is currently running
+    - Can receive new campaigns
+    - Shows in primary job lists
+    - Color: Green (#16a34a)
+  </Tab>
+  
+  <Tab title="Paused">
+    **Status:** `paused`
+    
+    - Job is temporarily stopped
+    - No new campaigns created
+    - Can be reactivated
+    - Color: Orange (#ea580c)
+  </Tab>
+  
+  <Tab title="Archived">
+    **Status:** `archived`
+    
+    - Job is completed or no longer needed
+    - Hidden from primary lists
+    - Data retained for historical reference
+    - Color: Gray (#64748b)
+  </Tab>
+</Tabs>
+
+## Viewing Your Jobs
+
+### By Platform
+
+Jobs are organized by platform in dedicated views:
+
+```typescript
+// Platform-specific routes
+/instagram-jobs  // Instagram campaigns
+/tiktok-jobs     // TikTok campaigns  
+/threads-jobs    // Threads campaigns
+/x-jobs          // X (Twitter) campaigns
+```
+
+Each view displays jobs in a table format with:
+- Influencer name
+- Job ID
+- Number of VAs
+- Status badge
+- Statistics (username count, assignments)
+- Action buttons
+
+### Recent Jobs Sidebar
+
+Your most recent jobs appear in the sidebar for quick access:
+
+- Shows last 5 created jobs
+- Displays platform icon
+- Click to navigate to job dashboard
+- Persisted in localStorage
+
+<Tip>
+  Use the sidebar for quick navigation between your active campaigns without going through platform-specific pages.
+</Tip>
+
+## Job Statistics
+
+Each job tracks comprehensive statistics:
+
+```typescript
+interface JobStatistics {
+  totalUsernames: number      // Total scraped profiles
+  usedUsernames: number       // Profiles already assigned
+  availableUsernames: number  // Profiles ready for assignment
+  totalAssignments: number    // Total VA assignments
+  totalScrapeResults: number  // Raw scrape results
+}
+```
+
+Access statistics using the API:
+
+```typescript
+import { getJobStatistics } from '@/lib/scraping-jobs'
+
+const stats = await getJobStatistics(jobId)
+console.log(`Available profiles: ${stats.availableUsernames}`)
+```
+
+## Multi-Tenant Data Isolation
+
+<Note>
+  The system uses Airtable base IDs as `base_id` values for complete data isolation between jobs.
+</Note>
+
+### How It Works
+
+Every database operation includes the `base_id` context:
+
+```typescript
+// Create Supabase client with context
+const supabaseWithContext = createSupabaseClientWithContext(baseId)
+
+// Query automatically filtered by base_id
+const { data } = await supabaseWithContext
+  .from('global_usernames')
+  .select('*')
+  .eq('used', false)
+```
+
+This ensures:
+- Usernames from one job never appear in another
+- Campaign assignments are isolated
+- Statistics are accurate per job
+- No data leakage between influencers
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Naming Conventions">
+    - Use clear, recognizable influencer names
+    - Be consistent with capitalization
+    - Include full names for clarity ("Andrew Tate" not "Tate")
+    - Follow the suggested Airtable naming format
+  </Accordion>
+  
+  <Accordion title="VA Allocation">
+    - Start with 80 VAs for standard campaigns (180 profiles each)
+    - Scale down for smaller campaigns
+    - Ensure even distribution: `target_profiles / num_vas = profiles_per_va`
+    - Consider VA workload capacity when setting numbers
+  </Accordion>
+  
+  <Accordion title="Platform Selection">
+    - Create separate jobs for each platform, even for the same influencer
+    - Don't mix platforms in a single job
+    - Track cross-platform metrics using separate job analysis
+  </Accordion>
+  
+  <Accordion title="Airtable Organization">
+    - Use consistent base naming across all jobs
+    - Keep bases organized in the AIVS workspace
+    - Don't delete bases that have active jobs
+    - Archive bases when archiving jobs
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+### Job Creation Fails
+
+<Accordion title="Solution">
+  1. Check Supabase connection in browser console
+  2. Verify all required fields are filled
+  3. Ensure Airtable URL is valid
+  4. Check network tab for API errors
+  5. Try refreshing the page and creating again
+</Accordion>
+
+### "Please enter a valid Airtable URL"
+
+<Accordion title="Solution">
+  The URL must:
+  - Start with `http://` or `https://`
+  - Contain `airtable.com` domain
+  - Be a complete URL (not just the base ID)
+  
+  Valid format:
+  ```
+  https://airtable.com/appXXXXXXXXXXXXXX/tblXXXXXXXXXXXXXX/viwXXXXXXXXXXXXXX
+  ```
+</Accordion>
+
+### Job Not Appearing in List
+
+<Accordion title="Solution">
+  1. Check you're on the correct platform page
+  2. Verify the job status (archived jobs are hidden)
+  3. Refresh the page to reload data
+  4. Check browser console for errors
+  5. Query the database directly:
+     ```typescript
+     const jobs = await getAllJobs()
+     console.log(jobs)
+     ```
+</Accordion>
+
+### Airtable Base Link Dialog Won't Close
+
+<Accordion title="Solution">
+  The dialog is non-skippable by design. To close it, you must:
+  - Enter a valid Airtable URL and submit, OR
+  - Click the "Cancel" button to abort job creation
+  
+  If stuck, refresh the page (job creation will be cancelled).
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Managing Campaigns" icon="calendar" href="/guides/managing-campaigns">
+    Learn how to create and manage campaigns for your jobs
+  </Card>
+  
+  <Card title="Multi-Platform Guide" icon="grid" href="/guides/multi-platform">
+    Master multi-platform scraping strategies
+  </Card>
+</CardGroup>
+
+## API Reference
+
+For programmatic job creation, see:
+
+<CardGroup cols={2}>
+  <Card title="Create Job API" icon="code" href="/api/scraping-jobs/create">
+    `POST /api/scraping-jobs/create`
+  </Card>
+  
+  <Card title="Scraping Jobs Types" icon="brackets-curly" href="/database/scraping-jobs">
+    TypeScript interfaces and types
+  </Card>
+</CardGroup>

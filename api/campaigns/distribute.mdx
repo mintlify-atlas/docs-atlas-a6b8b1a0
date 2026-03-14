@@ -1,0 +1,240 @@
+---
+title: 'Distribute Profiles'
+description: 'Distribute 14,400 selected profiles across 80 VA tables (180 profiles each)'
+---
+
+## Overview
+
+The Distribute endpoint takes a campaign and distributes its 14,400 selected profiles evenly across 80 Virtual Assistant (VA) tables. Each VA receives exactly 180 profiles for their daily outreach work.
+
+## Endpoint
+
+<ParamField path="method" type="string" default="POST">
+  POST
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  `/api/distribute/{campaign_id}`
+</ParamField>
+
+## Path Parameters
+
+<ParamField path="campaign_id" type="string" required>
+  The UUID of the campaign created by the daily-selection endpoint
+</ParamField>
+
+## Request
+
+No request body is required. The campaign_id in the URL path identifies which campaign to distribute.
+
+### Request Example
+
+```bash
+POST /api/distribute/a1b2c3d4-e5f6-7890-abcd-ef1234567890
+```
+
+<Note>
+This endpoint should only be called after successfully creating a campaign using the `/api/daily-selection` endpoint.
+</Note>
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates whether the distribution completed successfully
+</ResponseField>
+
+<ResponseField name="campaign_id" type="string" required>
+  UUID of the campaign that was distributed
+</ResponseField>
+
+<ResponseField name="va_tables" type="number" required>
+  Number of VA tables profiles were distributed to (always 80)
+</ResponseField>
+
+<ResponseField name="profiles_per_table" type="number" required>
+  Number of profiles assigned to each VA table (always 180)
+</ResponseField>
+
+### Success Response Example
+
+```json
+{
+  "success": true,
+  "campaign_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "va_tables": 80,
+  "profiles_per_table": 180
+}
+```
+
+### Error Response Example
+
+```json
+{
+  "success": false,
+  "error": "Campaign not found",
+  "campaign_id": "invalid-uuid"
+}
+```
+
+## Distribution Algorithm
+
+The distribution follows a round-robin algorithm:
+
+1. Fetch all 14,400 usernames for the campaign
+2. Sort usernames to ensure consistent distribution
+3. Assign profiles sequentially to VA tables 1-80
+4. Each VA table receives exactly 180 profiles
+
+```python
+# Simplified distribution logic
+va_table_number = 1
+for i, username in enumerate(usernames):
+    assign_to_table(username, va_table_number, campaign_id)
+    va_table_number = (va_table_number % 80) + 1
+```
+
+## Workflow Integration
+
+Distribution is step 2 in the campaign creation workflow:
+
+1. **Daily Selection (0-33%)** - ✅ Campaign created
+2. **Distribution (33-66%)** - 📍 Current step
+3. **Airtable Sync (66-100%)** - Awaiting completion
+
+<CodeGroup>
+```typescript Frontend Implementation
+const handleDistribute = async (campaignId: string) => {
+  try {
+    setProgress(40);
+    setProgressMessage('Distributing to VAs...');
+    
+    const distributeRes = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/distribute/${campaignId}`,
+      { method: 'POST' }
+    );
+    
+    const distributeData = await distributeRes.json();
+    
+    if (!distributeData.success) {
+      throw new Error('Distribution failed');
+    }
+    
+    console.log(`Distributed to ${distributeData.va_tables} VAs`);
+    setProgress(66);
+    
+    // Continue with Airtable sync...
+    
+  } catch (error) {
+    console.error('Distribution failed:', error);
+  }
+};
+```
+
+```bash cURL Example
+curl -X POST http://localhost:5001/api/distribute/a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
+  -H "Content-Type: application/json"
+```
+
+```python Python Example
+import requests
+
+campaign_id = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+response = requests.post(
+    f'http://localhost:5001/api/distribute/{campaign_id}'
+)
+
+data = response.json()
+if data['success']:
+    print(f"✓ Distributed to {data['va_tables']} VA tables")
+    print(f"✓ {data['profiles_per_table']} profiles per table")
+else:
+    print(f"✗ Error: {data.get('error')}")
+```
+</CodeGroup>
+
+## Database Changes
+
+This endpoint creates records in the `daily_assignments` table:
+
+### daily_assignments table
+
+```sql
+INSERT INTO daily_assignments (
+  id,
+  campaign_id,
+  username,
+  va_table_number,
+  assigned_at
+) VALUES (
+  uuid_generate_v4(),
+  'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+  'instagram_user_123',
+  1,  -- VA table number (1-80)
+  NOW()
+);
+```
+
+### Assignment Distribution
+
+| VA Table | Profiles Assigned | Username Range |
+|----------|-------------------|----------------|
+| Table 1  | 180               | Profiles 1-180 |
+| Table 2  | 180               | Profiles 181-360 |
+| Table 3  | 180               | Profiles 361-540 |
+| ...      | ...               | ... |
+| Table 80 | 180               | Profiles 14,221-14,400 |
+
+## Performance Considerations
+
+<Warning>
+Distribution involves creating 14,400 database records and may take 10-30 seconds depending on database performance.
+</Warning>
+
+**Optimization strategies:**
+- Uses batch INSERT operations (not individual queries)
+- Processes in chunks of 500 records
+- No external API calls (all database operations)
+
+## Error Handling
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Campaign not found | Invalid campaign_id or campaign doesn't exist | Verify campaign was created successfully |
+| Already distributed | Campaign profiles already assigned to VA tables | Check `daily_assignments` table for existing records |
+| Database timeout | Large batch insert exceeded timeout | Increase database connection timeout |
+| Invalid VA table count | Configuration error | Verify VA table count is set to 80 |
+
+## Verification
+
+After distribution, verify the assignment:
+
+```sql
+-- Check total assignments
+SELECT COUNT(*) 
+FROM daily_assignments 
+WHERE campaign_id = 'your-campaign-id';
+-- Expected: 14400
+
+-- Check distribution per VA table
+SELECT va_table_number, COUNT(*) as profile_count
+FROM daily_assignments
+WHERE campaign_id = 'your-campaign-id'
+GROUP BY va_table_number
+ORDER BY va_table_number;
+-- Expected: 80 rows, each with count = 180
+```
+
+## Related Endpoints
+
+- [Daily Selection](/api/campaigns/daily-selection) - Previous step: create campaign
+- [Airtable Sync](/api/campaigns/airtable-sync) - Next step: sync to Airtable
+- [Cleanup](/api/campaigns/cleanup) - Remove old campaigns after 7 days
+
+## Real-World Usage
+
+In production, this endpoint:
+- Processes 14,400 profiles in 15-25 seconds
+- Distributes evenly across 80 VA tables
+- Runs once per day as part of campaign creation
+- Supports up to 1.008M profiles per week (7 days × 14,400)

@@ -1,0 +1,353 @@
+---
+title: 'Scraping Campaigns'
+description: 'Learn how to create and manage automated follower scraping campaigns across multiple social platforms'
+icon: 'radar'
+---
+
+## Overview
+
+The scraping campaigns feature allows you to automatically extract follower data from source accounts on Instagram, TikTok, Threads, and X (Twitter). The system uses Apify actors to scrape follower lists, applies gender filtering, and automatically ingests results into your database.
+
+<Info>
+  **Multi-Platform Support**: The platform supports Instagram, TikTok, Threads, and X with platform-specific pricing and configurations.
+</Info>
+
+## How It Works
+
+The scraping workflow consists of three automated phases:
+
+1. **Scraping Phase (0-50%)** - Apify extracts followers from source accounts
+2. **Gender Detection** - Male profiles are filtered using name-based detection
+3. **Auto-Ingest Phase (50-100%)** - Results are saved and deduplicated in your database
+
+## Creating a Scraping Campaign
+
+<Steps>
+  <Step title="Add Source Accounts">
+    Navigate to the "Find Accounts" card and add Instagram/TikTok/Threads/X accounts to scrape from.
+    
+    You can add accounts by:
+    - Entering a username (e.g., `nike` or `@nike`)
+    - Pasting a profile URL (e.g., `https://instagram.com/nike`)
+    
+    Press Enter or click the + button to add each account.
+  </Step>
+  
+  <Step title="Configure Scrape Count">
+    Set the total number of accounts to scrape in the "Total Accounts to Scrape" field.
+    
+    <Note>
+      If you add multiple source accounts, the total will be distributed evenly. For example:
+      - 1 account scraping 1,500 followers = ~1,500 per account
+      - 3 accounts scraping 1,500 followers = ~500 per account each
+    </Note>
+  </Step>
+  
+  <Step title="Review Cost Estimate">
+    The platform displays an estimated Apify cost based on:
+    - **Instagram**: $1.55 per 1,000 accounts
+    - **TikTok**: $2.00 per 1,000 accounts
+    - **Threads**: $1.55 per 1,000 accounts
+    - **X (Twitter)**: $0.15 per 1,000 accounts
+    
+    Click "Check Balance" to verify your Apify credits before proceeding.
+  </Step>
+  
+  <Step title="Launch Scraping">
+    Click the **Find Accounts** button to start the scraping workflow.
+    
+    A progress bar will display:
+    - **Scraping followers...** (0-50%)
+    - **Saving to database...** (50-100%)
+    - **Complete!** (100%)
+  </Step>
+</Steps>
+
+## Platform-Specific Features
+
+<Tabs>
+  <Tab title="Instagram">
+    ### Instagram Scraping
+    
+    **URL Pattern**: `instagram.com/@username`
+    
+    **Features**:
+    - Extracts followers from public accounts
+    - Captures username, full name, follower count, bio
+    - Gender detection via name analysis
+    - Private accounts are skipped
+    
+    **Cost**: $1.55 per 1,000 followers
+  </Tab>
+  
+  <Tab title="TikTok">
+    ### TikTok Scraping
+    
+    **URL Pattern**: `tiktok.com/@username`
+    
+    **Features**:
+    - Extracts followers and following lists
+    - Higher cost due to TikTok's rate limits
+    - Supports @ prefix in usernames
+    
+    **Cost**: $2.00 per 1,000 followers
+  </Tab>
+  
+  <Tab title="Threads">
+    ### Threads Scraping
+    
+    **URL Pattern**: `threads.net/@username`
+    
+    **Features**:
+    - Meta's text-based platform
+    - Similar to Instagram scraping flow
+    - Integrated with Instagram profiles
+    
+    **Cost**: $1.55 per 1,000 followers
+  </Tab>
+  
+  <Tab title="X (Twitter)">
+    ### X (Twitter) Scraping
+    
+    **URL Pattern**: `x.com/username` or `twitter.com/username`
+    
+    **Features**:
+    - Lowest cost platform
+    - Supports legacy twitter.com URLs
+    - No @ prefix required
+    
+    **Cost**: $0.15 per 1,000 followers
+  </Tab>
+</Tabs>
+
+## UI Components
+
+### Dependencies Card
+
+Location: `components/dependencies-card.tsx`
+
+The main interface for managing scraping campaigns:
+
+- **Source Account Input**: Add/remove accounts to scrape
+- **Load Source Profiles**: Import previously saved accounts from database
+- **Edit Source Profiles**: Manage saved accounts in a dialog
+- **Total Scrape Count**: Configure how many followers to extract
+- **Cost Estimator**: Real-time Apify cost calculation
+- **Progress Bar**: Live scraping and ingestion status
+
+### Progress Tracking
+
+The system provides real-time feedback during scraping:
+
+```jsx
+// Progress states
+'idle'      → Ready to start
+'scraping'  → 📡 Scraping followers...
+'ingesting' → 💾 Saving to database...
+'complete'  → ✅ Complete!
+```
+
+## Database Storage
+
+### Tables Used
+
+<CardGroup cols={2}>
+  <Card title="source_profiles" icon="database">
+    Stores Instagram/TikTok/etc. accounts to scrape from
+    
+    **Columns**: `id`, `username`, `base_id`, `created_at`
+  </Card>
+  
+  <Card title="scrape_results" icon="table">
+    Raw scraped data before processing
+    
+    **Columns**: `id`, `username`, `full_name`, `follower_count`, `detected_gender`
+  </Card>
+  
+  <Card title="global_usernames" icon="users">
+    Deduplicated username pool
+    
+    **Columns**: `username`, `used`, `base_id`, `created_at`
+  </Card>
+</CardGroup>
+
+### Deduplication Strategy
+
+The platform uses a two-table approach:
+
+1. **scrape_results** - Keeps all raw scraped data with metadata
+2. **global_usernames** - Maintains unique usernames only, preventing duplicates
+
+<Warning>
+  Usernames are automatically deduplicated across all scraping campaigns within the same job (base_id). If a username was previously scraped, it won't be added again.
+</Warning>
+
+## Gender Filtering
+
+The system automatically filters for male profiles using name-based gender detection:
+
+- **API**: Gender detection API analyzes first names
+- **Filter**: Only profiles detected as "male" are saved
+- **Distribution**: Results show gender breakdown:
+  - `male`: Saved to database
+  - `female`: Filtered out
+  - `unknown`: Filtered out
+
+## API Integration
+
+The scraping workflow calls two backend endpoints sequentially:
+
+### 1. Scrape Followers
+
+**Endpoint**: `POST /api/scrape-followers`
+
+**Request**:
+```json
+{
+  "accounts": ["nike", "adidas"],
+  "targetGender": "male",
+  "totalScrapeCount": 1500,
+  "platform": "instagram"
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "accounts": [...],
+    "totalScraped": 1500,
+    "totalFiltered": 680,
+    "genderDistribution": {
+      "male": 680,
+      "female": 620,
+      "unknown": 200
+    }
+  }
+}
+```
+
+### 2. Auto-Ingest
+
+**Endpoint**: `POST /api/ingest`
+
+**Request**:
+```json
+{
+  "profiles": [
+    {
+      "id": "12345",
+      "username": "johndoe",
+      "full_name": "John Doe"
+    }
+  ]
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "message": "Profiles ingested successfully",
+  "stats": {
+    "total_processed": 680,
+    "new_profiles": 512,
+    "duplicates": 168
+  },
+  "added_to_global": 512
+}
+```
+
+## Managing Source Profiles
+
+### Edit Source Profiles Dialog
+
+Access via the dropdown menu (⋮) → "Edit source profiles"
+
+**Features**:
+- Add new profiles with instant database save
+- Remove individual profiles
+- Clear all profiles (password protected)
+- Real-time profile count
+- Multi-tenant isolated (per job)
+
+### Load Source Profiles
+
+Quickly reload previously saved accounts:
+
+1. Click dropdown menu (⋮)
+2. Select "Load source profiles"
+3. All saved accounts for the active job are loaded
+
+<Info>
+  Source profiles are isolated per job using `base_id`. Switching jobs will load different source profiles automatically.
+</Info>
+
+## Troubleshooting
+
+### "Scraping failed"
+
+**Common Causes**:
+- Insufficient Apify credits
+- Invalid Instagram/TikTok usernames
+- Private accounts (cannot be scraped)
+- Apify actor is down or rate-limited
+
+**Solutions**:
+1. Verify Apify balance in dashboard
+2. Ensure accounts are public
+3. Check source account URLs are valid
+4. Reduce `totalScrapeCount` if hitting rate limits
+
+### "Ingestion failed"
+
+**Common Causes**:
+- Database connection lost
+- RLS policies blocking inserts
+- Duplicate key violations
+
+**Solutions**:
+1. Check Supabase connection in `.env.local`
+2. Verify RLS policies allow inserts for your role
+3. Check backend logs for detailed error messages
+
+### Low Filter Results
+
+If gender filtering returns very few males:
+
+- Some accounts have predominantly female followers
+- Gender API may struggle with international names
+- Consider adjusting `targetGender` or increasing `totalScrapeCount`
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Start Small" icon="seedling">
+    Test with 100-500 followers first to verify the workflow before running large campaigns.
+  </Card>
+  
+  <Card title="Monitor Costs" icon="dollar-sign">
+    Always check the cost estimator and verify Apify balance before scraping thousands of accounts.
+  </Card>
+  
+  <Card title="Use Multiple Sources" icon="users">
+    Add 3-5 source accounts with similar target audiences to maximize profile diversity.
+  </Card>
+  
+  <Card title="Save Profiles" icon="bookmark">
+    Use "Edit source profiles" to save frequently used accounts for quick reuse.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Profile Management" href="/features/profile-management" icon="user-circle">
+    Learn how to view and manage scraped profiles
+  </Card>
+  
+  <Card title="VA Distribution" href="/features/va-distribution" icon="share-nodes">
+    Distribute profiles to virtual assistants
+  </Card>
+</CardGroup>

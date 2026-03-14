@@ -1,0 +1,591 @@
+---
+title: "Installation"
+description: "Complete installation and configuration guide for Click Creators Scraper Client"
+---
+
+<Note>
+  This guide covers detailed installation steps for both frontend and backend components, including database setup and third-party integrations.
+</Note>
+
+## System Requirements
+
+### Frontend Requirements
+
+- **Node.js**: 18.0 or higher
+- **Package Manager**: npm or yarn
+- **Operating System**: macOS, Linux, or Windows
+- **Browser**: Modern browser (Chrome, Firefox, Safari, Edge)
+
+### Backend Requirements
+
+- **Python**: 3.9 or higher
+- **pip**: Latest version
+- **Virtual Environment**: venv or conda (recommended)
+
+### Third-Party Services
+
+<CardGroup cols={2}>
+  <Card title="Supabase" icon="database">
+    PostgreSQL database with Row Level Security
+  </Card>
+  <Card title="Apify" icon="robot">
+    Instagram scraping actor with API access
+  </Card>
+  <Card title="Airtable" icon="table">
+    80 VA tables for profile distribution
+  </Card>
+  <Card title="Gender API" icon="user">
+    Optional: Enhanced gender detection
+  </Card>
+</CardGroup>
+
+## Frontend Installation
+
+<Steps>
+  <Step title="Clone or download the repository">
+    Navigate to the project directory:
+    
+    ```bash
+    cd /path/to/click-creators-scraper-client
+    ```
+  </Step>
+
+  <Step title="Navigate to client directory">
+    ```bash
+    cd client
+    ```
+  </Step>
+
+  <Step title="Install Node.js dependencies">
+    Using npm:
+    ```bash
+    npm install
+    ```
+    
+    Or using yarn:
+    ```bash
+    yarn install
+    ```
+    
+    This installs all required packages:
+    - Next.js 14.2.33
+    - TypeScript 5.x
+    - Supabase client 2.58+
+    - Radix UI components
+    - Tailwind CSS
+  </Step>
+
+  <Step title="Configure environment variables">
+    Create your environment file:
+    
+    ```bash
+    cp .env.example .env.local
+    ```
+    
+    <Note>
+      Next.js uses `.env.local` for local development. Never commit this file to version control.
+    </Note>
+  </Step>
+</Steps>
+
+## Frontend Environment Configuration
+
+Edit `.env.local` with your configuration:
+
+### Application URLs
+
+```bash .env.local
+# Frontend application URL
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Backend API URL (Flask server)
+NEXT_PUBLIC_API_URL=http://localhost:5001
+```
+
+### Supabase Configuration
+
+<Steps>
+  <Step title="Create a Supabase project">
+    1. Go to [app.supabase.com](https://app.supabase.com)
+    2. Click **New Project**
+    3. Choose a name and database password
+    4. Wait for project to provision (~2 minutes)
+  </Step>
+
+  <Step title="Get your credentials">
+    From your Supabase project dashboard:
+    
+    1. Click **Settings** → **API**
+    2. Copy **Project URL** and **anon/public key**
+    
+    ```bash .env.local
+    NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxxxxxxx.supabase.co
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    ```
+  </Step>
+</Steps>
+
+### Authentication Configuration
+
+```bash .env.local
+# Custom authentication credentials
+NEXT_PUBLIC_USERNAME=admin
+NEXT_PUBLIC_PASSWORD=your-secure-password
+NEXT_PUBLIC_OTP=123456
+```
+
+<Warning>
+  In production, use strong passwords and implement proper OTP generation. The current implementation uses static values for simplicity.
+</Warning>
+
+### Campaign Configuration
+
+```bash .env.local
+# Daily profile selection target
+NEXT_PUBLIC_DAILY_SELECTION_TARGET=14400
+
+# Password for deleting source profiles
+NEXT_PUBLIC_DELETE_PASSWORD=delete123
+```
+
+## Backend Installation
+
+<Steps>
+  <Step title="Navigate to server directory">
+    ```bash
+    cd server
+    ```
+    
+    <Note>
+      If you don't have a `server` directory, the backend may be in a separate repository or deployment.
+    </Note>
+  </Step>
+
+  <Step title="Create virtual environment">
+    Using venv:
+    ```bash
+    python -m venv venv
+    ```
+    
+    Activate the virtual environment:
+    
+    <CodeGroup>
+      ```bash macOS/Linux
+      source venv/bin/activate
+      ```
+      
+      ```bash Windows
+      venv\Scripts\activate
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Install Python dependencies">
+    ```bash
+    pip install -r requirements.txt
+    ```
+    
+    Key dependencies:
+    - Flask (web framework)
+    - supabase-py (database client)
+    - apify-client (scraping integration)
+    - airtable-python-wrapper (VA distribution)
+  </Step>
+
+  <Step title="Configure backend environment">
+    Create `.env` file in the server directory:
+    
+    ```bash
+    touch .env
+    ```
+  </Step>
+</Steps>
+
+## Backend Environment Configuration
+
+Edit `server/.env` with your backend credentials:
+
+### Supabase Configuration
+
+```bash server/.env
+# Use service role key for backend (has elevated privileges)
+SUPABASE_URL=https://xxxxxxxxxxxxx.supabase.co
+SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+<Warning>
+  Use the **service_role** key for backend, not the anon key. This key has full database access and should never be exposed to the client.
+</Warning>
+
+### Apify Configuration
+
+<Steps>
+  <Step title="Get Apify API key">
+    1. Log in to [console.apify.com](https://console.apify.com)
+    2. Click **Settings** → **Integrations**
+    3. Copy your API token
+  </Step>
+
+  <Step title="Find Instagram scraper actor ID">
+    1. Browse the [Apify Store](https://apify.com/store)
+    2. Search for "Instagram Follower Scraper"
+    3. Copy the Actor ID from the URL or actor page
+  </Step>
+
+  <Step title="Add to environment">
+    ```bash server/.env
+    APIFY_API_KEY=apify_api_xxxxxxxxxxxxxxxxxx
+    APIFY_ACTOR_ID=your-actor-id
+    ```
+  </Step>
+</Steps>
+
+### Airtable Configuration
+
+<Steps>
+  <Step title="Create Airtable base">
+    1. Create a new base in [Airtable](https://airtable.com)
+    2. Create 80 tables named: `Table 1`, `Table 2`, ..., `Table 80`
+    3. Each table should have columns: `Username`, `Full Name`, `Profile URL`, `Gender`
+  </Step>
+
+  <Step title="Get API credentials">
+    1. Go to [airtable.com/account](https://airtable.com/account)
+    2. Generate a personal access token with `data.records:write` scope
+    3. Copy your base ID from the base URL: `https://airtable.com/appXXXXXXXXXXXXXX`
+  </Step>
+
+  <Step title="Add to environment">
+    ```bash server/.env
+    AIRTABLE_API_KEY=patXXXXXXXXXXXXXXXX.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    AIRTABLE_BASE_ID=appXXXXXXXXXXXXXX
+    ```
+  </Step>
+</Steps>
+
+### Optional: Gender Detection API
+
+```bash server/.env
+GENDER_API_KEY=your-gender-api-key
+```
+
+<Note>
+  The platform includes built-in name-based gender detection. This API key is optional for enhanced accuracy.
+</Note>
+
+## Database Setup
+
+<Steps>
+  <Step title="Access Supabase SQL Editor">
+    1. Open your Supabase project dashboard
+    2. Navigate to **SQL Editor**
+    3. Click **New Query**
+  </Step>
+
+  <Step title="Create source_profiles table">
+    ```sql
+    CREATE TABLE source_profiles (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      username TEXT NOT NULL UNIQUE,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- Enable Row Level Security
+    ALTER TABLE source_profiles ENABLE ROW LEVEL SECURITY;
+    
+    -- Allow anonymous read/write (adjust for production)
+    CREATE POLICY "Allow anonymous access" ON source_profiles
+      FOR ALL USING (true);
+    ```
+  </Step>
+
+  <Step title="Create raw_scraped_profiles table">
+    ```sql
+    CREATE TABLE raw_scraped_profiles (
+      id TEXT PRIMARY KEY,
+      username TEXT,
+      full_name TEXT,
+      follower_count INTEGER,
+      following_count INTEGER,
+      post_count INTEGER,
+      is_verified BOOLEAN,
+      is_private BOOLEAN,
+      biography TEXT,
+      url TEXT,
+      detected_gender TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    ALTER TABLE raw_scraped_profiles ENABLE ROW LEVEL SECURITY;
+    
+    CREATE POLICY "Allow anonymous access" ON raw_scraped_profiles
+      FOR ALL USING (true);
+    ```
+  </Step>
+
+  <Step title="Create global_usernames table">
+    ```sql
+    CREATE TABLE global_usernames (
+      username TEXT PRIMARY KEY,
+      used BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    ALTER TABLE global_usernames ENABLE ROW LEVEL SECURITY;
+    
+    CREATE POLICY "Allow anonymous access" ON global_usernames
+      FOR ALL USING (true);
+    
+    -- Create index for performance
+    CREATE INDEX idx_global_usernames_unused 
+      ON global_usernames(used) WHERE used = false;
+    ```
+  </Step>
+
+  <Step title="Create campaigns table">
+    ```sql
+    CREATE TABLE campaigns (
+      campaign_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      campaign_date DATE NOT NULL,
+      total_assigned INTEGER NOT NULL,
+      status TEXT CHECK (status IN ('pending', 'success', 'failed')),
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    ALTER TABLE campaigns ENABLE ROW LEVEL SECURITY;
+    
+    CREATE POLICY "Allow anonymous access" ON campaigns
+      FOR ALL USING (true);
+    ```
+  </Step>
+
+  <Step title="Create daily_assignments table">
+    ```sql
+    CREATE TABLE daily_assignments (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      campaign_id UUID REFERENCES campaigns(campaign_id),
+      username TEXT,
+      va_table_number INTEGER,
+      assigned_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    ALTER TABLE daily_assignments ENABLE ROW LEVEL SECURITY;
+    
+    CREATE POLICY "Allow anonymous access" ON daily_assignments
+      FOR ALL USING (true);
+    
+    -- Create index for campaign lookups
+    CREATE INDEX idx_daily_assignments_campaign 
+      ON daily_assignments(campaign_id);
+    ```
+  </Step>
+
+  <Step title="Create scraping_jobs table">
+    ```sql
+    CREATE TABLE scraping_jobs (
+      job_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      influencer_name TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      airtable_base_id TEXT,
+      num_vas INTEGER,
+      status TEXT DEFAULT 'active',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    
+    ALTER TABLE scraping_jobs ENABLE ROW LEVEL SECURITY;
+    
+    CREATE POLICY "Allow anonymous access" ON scraping_jobs
+      FOR ALL USING (true);
+    
+    -- Create index for platform filtering
+    CREATE INDEX idx_scraping_jobs_platform 
+      ON scraping_jobs(platform);
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  The policies above use `USING (true)` for simplicity. In production, implement proper authentication and restrict access based on user roles.
+</Warning>
+
+## Verification
+
+<Steps>
+  <Step title="Start the frontend">
+    ```bash
+    cd client
+    npm run dev
+    ```
+    
+    Verify the app is running at `http://localhost:3000`
+  </Step>
+
+  <Step title="Start the backend">
+    ```bash
+    cd server
+    python api.py
+    ```
+    
+    Verify the API is running at `http://localhost:5001`
+  </Step>
+
+  <Step title="Test database connection">
+    1. Navigate to `http://localhost:3000/callum`
+    2. Log in with your credentials
+    3. Try adding a source profile
+    4. Check Supabase dashboard to verify the record was created
+  </Step>
+
+  <Step title="Test API endpoints">
+    Check backend health:
+    
+    ```bash
+    curl http://localhost:5001/health
+    ```
+    
+    Expected response:
+    ```json
+    {"status": "healthy"}
+    ```
+  </Step>
+</Steps>
+
+## Production Deployment
+
+### Frontend Deployment (Vercel)
+
+<Steps>
+  <Step title="Build the application">
+    ```bash
+    cd client
+    npm run build
+    ```
+    
+    This runs type checking and builds the Next.js app.
+  </Step>
+
+  <Step title="Deploy to Vercel">
+    1. Install Vercel CLI: `npm i -g vercel`
+    2. Run `vercel` in the client directory
+    3. Follow the prompts to link your project
+    4. Add environment variables in Vercel dashboard
+  </Step>
+</Steps>
+
+### Backend Deployment
+
+<CodeGroup>
+  ```bash Docker
+  # Build Docker image
+  docker build -t scraper-api ./server
+  
+  # Run container
+  docker run -p 5001:5001 --env-file ./server/.env scraper-api
+  ```
+  
+  ```bash Standalone
+  # Build standalone executable
+  cd server
+  pyinstaller --onefile --name flask-backend api.py
+  
+  # Run the executable
+  ./dist/flask-backend
+  ```
+</CodeGroup>
+
+### Environment Variables Checklist
+
+<AccordionGroup>
+  <Accordion title="Frontend (.env.local)">
+    - [ ] `NEXT_PUBLIC_APP_URL` - Production URL
+    - [ ] `NEXT_PUBLIC_API_URL` - Backend API URL
+    - [ ] `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
+    - [ ] `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key
+    - [ ] `NEXT_PUBLIC_USERNAME` - Admin username
+    - [ ] `NEXT_PUBLIC_PASSWORD` - Secure password
+    - [ ] `NEXT_PUBLIC_OTP` - OTP code
+    - [ ] `NEXT_PUBLIC_DAILY_SELECTION_TARGET` - 14400
+    - [ ] `NEXT_PUBLIC_DELETE_PASSWORD` - Delete password
+  </Accordion>
+
+  <Accordion title="Backend (.env)">
+    - [ ] `SUPABASE_URL` - Supabase project URL
+    - [ ] `SUPABASE_KEY` - Supabase service role key
+    - [ ] `APIFY_API_KEY` - Apify API token
+    - [ ] `APIFY_ACTOR_ID` - Instagram scraper actor ID
+    - [ ] `AIRTABLE_API_KEY` - Airtable personal access token
+    - [ ] `AIRTABLE_BASE_ID` - Airtable base ID
+    - [ ] `GENDER_API_KEY` - Optional gender detection API key
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting Installation
+
+<AccordionGroup>
+  <Accordion title="npm install fails">
+    **Solution:**
+    ```bash
+    # Clear npm cache
+    npm cache clean --force
+    
+    # Delete node_modules and lock file
+    rm -rf node_modules package-lock.json
+    
+    # Reinstall
+    npm install
+    ```
+  </Accordion>
+
+  <Accordion title="Python dependencies fail to install">
+    **Solution:**
+    ```bash
+    # Upgrade pip
+    pip install --upgrade pip
+    
+    # Install dependencies individually
+    pip install flask
+    pip install supabase
+    pip install apify-client
+    ```
+  </Accordion>
+
+  <Accordion title="Database tables not creating">
+    **Solution:**
+    - Verify you're using the SQL Editor in Supabase dashboard
+    - Check for syntax errors in the SQL queries
+    - Ensure your Supabase project has sufficient resources
+    - Try creating tables one at a time
+  </Accordion>
+
+  <Accordion title="TypeScript errors during build">
+    **Solution:**
+    ```bash
+    # Run type check to see all errors
+    npm run type-check
+    
+    # Update TypeScript
+    npm install typescript@latest
+    
+    # Clear Next.js cache
+    rm -rf .next
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Run your first scraping campaign
+  </Card>
+  <Card title="Database Schema" icon="database" href="/database/overview">
+    Understand the data structure
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Explore backend endpoints
+  </Card>
+  <Card title="Configuration Guide" icon="gear" href="/installation">
+    Advanced configuration options
+  </Card>
+</CardGroup>

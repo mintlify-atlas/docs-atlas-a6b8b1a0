@@ -1,0 +1,248 @@
+---
+title: 'Create Scraping Job'
+description: 'Create a new scraping job for an influencer campaign'
+---
+
+## Overview
+
+Create a new scraping job to track an influencer's social media campaign. Each job is associated with a specific platform (Instagram, TikTok, Threads, or X) and an Airtable base for multi-tenant data isolation.
+
+## Function Signature
+
+```typescript
+export async function createScrapingJob(
+  input: CreateScrapingJobInput
+): Promise<ScrapingJob | null>
+```
+
+## Parameters
+
+<ParamField path="input" type="CreateScrapingJobInput" required>
+  The scraping job configuration
+  
+  <Expandable title="CreateScrapingJobInput properties">
+    <ParamField path="influencer_name" type="string" required>
+      The name of the influencer for this campaign
+    </ParamField>
+    
+    <ParamField path="platform" type="Platform" required>
+      The social media platform for this job. Must be one of:
+      - `instagram`
+      - `threads`
+      - `tiktok`
+      - `x`
+    </ParamField>
+    
+    <ParamField path="airtable_base_id" type="string" required>
+      The Airtable base ID for multi-tenant isolation. This serves as the primary key for tenant data separation.
+    </ParamField>
+    
+    <ParamField path="num_vas" type="number">
+      Optional number of Virtual Assistants assigned to this job
+    </ParamField>
+    
+    <ParamField path="status" type="JobStatus" default="active">
+      Initial job status. Options:
+      - `active` - Job is currently running
+      - `paused` - Job is temporarily paused
+      - `archived` - Job is archived
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Response
+
+Returns a `ScrapingJob` object on success, or `null` if creation fails.
+
+<ResponseField name="job_id" type="string">
+  Unique identifier for the job (UUID)
+</ResponseField>
+
+<ResponseField name="influencer_name" type="string">
+  Name of the influencer
+</ResponseField>
+
+<ResponseField name="platform" type="Platform">
+  Social media platform (instagram, threads, tiktok, or x)
+</ResponseField>
+
+<ResponseField name="airtable_base_id" type="string">
+  Airtable base ID for data isolation
+</ResponseField>
+
+<ResponseField name="base_id" type="string">
+  Multi-tenant isolation key (same as airtable_base_id)
+</ResponseField>
+
+<ResponseField name="num_vas" type="number | null">
+  Number of VAs assigned to this job
+</ResponseField>
+
+<ResponseField name="status" type="JobStatus">
+  Current job status
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  ISO 8601 timestamp of job creation
+</ResponseField>
+
+<ResponseField name="updated_at" type="string | null">
+  ISO 8601 timestamp of last update
+</ResponseField>
+
+## Code Examples
+
+<CodeGroup>
+```typescript Basic Usage
+import { createScrapingJob } from '@/lib/scraping-jobs';
+
+const job = await createScrapingJob({
+  influencer_name: 'John Doe',
+  platform: 'instagram',
+  airtable_base_id: 'appXXXXXXXXXXXXXX',
+  num_vas: 5,
+  status: 'active'
+});
+
+if (job) {
+  console.log('Job created:', job.job_id);
+} else {
+  console.error('Failed to create job');
+}
+```
+
+```typescript With Error Handling
+import { createScrapingJob } from '@/lib/scraping-jobs';
+import { toast } from '@/components/ui/use-toast';
+
+async function setupCampaign() {
+  const job = await createScrapingJob({
+    influencer_name: influencerName,
+    platform: 'tiktok',
+    airtable_base_id: extractedBaseId,
+    num_vas: 10,
+    status: 'active'
+  });
+
+  if (!job) {
+    toast({
+      title: 'Error',
+      description: 'Failed to create scraping job',
+      variant: 'destructive',
+    });
+    return;
+  }
+
+  // Continue with job setup
+  console.log('Job created successfully:', job);
+  return job;
+}
+```
+
+```typescript React Component
+import { createScrapingJob } from '@/lib/scraping-jobs';
+import { useState } from 'react';
+
+function CreateJobForm() {
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(formData: FormData) {
+    setLoading(true);
+    
+    try {
+      const job = await createScrapingJob({
+        influencer_name: formData.get('name') as string,
+        platform: formData.get('platform') as Platform,
+        airtable_base_id: formData.get('baseId') as string,
+        num_vas: Number(formData.get('numVas')),
+        status: 'active'
+      });
+
+      if (job) {
+        // Success - redirect or show success message
+        window.location.href = `/jobs/${job.job_id}`;
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* Form fields */}
+    </form>
+  );
+}
+```
+</CodeGroup>
+
+## Error Handling
+
+<Note>
+The function returns `null` instead of throwing errors. Always check the return value before proceeding.
+</Note>
+
+Common reasons for failure:
+- Invalid platform value (must be 'instagram', 'threads', 'tiktok', or 'x')
+- Missing required fields (influencer_name, platform, airtable_base_id)
+- Database connection issues
+- Duplicate base_id conflicts
+
+```typescript
+const job = await createScrapingJob(input);
+
+if (!job) {
+  // Handle error - check console for details
+  console.error('Job creation failed');
+  // The function logs detailed error information automatically
+  return;
+}
+
+// Proceed with successful job creation
+console.log('Created job:', job.job_id);
+```
+
+## Multi-Tenant Isolation
+
+<Note>
+The `airtable_base_id` is critical for multi-tenant data isolation. All related data (usernames, assignments, scrape results) will be associated with this base_id.
+</Note>
+
+When creating a job:
+1. The `airtable_base_id` is used as the primary tenant identifier
+2. The `base_id` field is automatically set to match `airtable_base_id`
+3. All subsequent operations (adding usernames, creating assignments) must use this base_id
+
+## Related Functions
+
+- [`getAllJobs`](/api/scraping-jobs/list) - Retrieve all scraping jobs
+- [`updateJob`](/api/scraping-jobs/update) - Update an existing job
+- [`getJobStatisticsByBaseId`](/api/scraping-jobs/statistics) - Get job statistics
+
+## Type Definitions
+
+```typescript
+type Platform = 'instagram' | 'threads' | 'tiktok' | 'x';
+
+type JobStatus = 'active' | 'paused' | 'archived';
+
+interface CreateScrapingJobInput {
+  influencer_name: string;
+  platform: Platform;
+  airtable_base_id: string;
+  num_vas?: number;
+  status?: JobStatus;
+}
+
+interface ScrapingJob {
+  job_id: string;
+  influencer_name: string;
+  platform: Platform;
+  airtable_base_id: string;
+  base_id: string;
+  num_vas: number | null;
+  status: JobStatus;
+  created_at: string;
+  updated_at: string | null;
+}
+```

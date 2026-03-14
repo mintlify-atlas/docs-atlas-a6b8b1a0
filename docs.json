@@ -1,122 +1,111 @@
 {
   "$schema": "https://mintlify.com/docs.json",
+  "name": "Click Creators Scraper Client",
   "theme": "mint",
-  "name": "Mint Starter Kit",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#E4405F",
+    "light": "#F77A94",
+    "dark": "#C13584"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/AI-Venture-Studio/Click-Creators-Scraper-Client"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/AI-Venture-Studio/Click-Creators-Scraper-Client"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
+            "pages": ["introduction", "quickstart", "installation"]
+          },
+          {
+            "group": "Core Features",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "features/scraping-campaigns",
+              "features/profile-management",
+              "features/va-distribution",
+              "features/airtable-sync"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Guides",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "guides/authentication",
+              "guides/creating-jobs",
+              "guides/managing-campaigns",
+              "guides/multi-platform"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Platform Support",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "platforms/instagram",
+              "platforms/threads",
+              "platforms/tiktok",
+              "platforms/x-twitter"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Overview",
+            "pages": ["api/overview", "api/authentication"]
+          },
+          {
+            "group": "Scraping Jobs",
             "pages": [
-              "api-reference/introduction"
+              "api/scraping-jobs/create",
+              "api/scraping-jobs/list",
+              "api/scraping-jobs/update",
+              "api/scraping-jobs/statistics"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Campaigns",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/campaigns/daily-selection",
+              "api/campaigns/distribute",
+              "api/campaigns/airtable-sync",
+              "api/campaigns/cleanup"
+            ]
+          },
+          {
+            "group": "Profiles",
+            "pages": [
+              "api/profiles/scrape-followers",
+              "api/profiles/ingest",
+              "api/profiles/usernames"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Database",
+        "groups": [
+          {
+            "group": "Schema",
+            "pages": [
+              "database/overview",
+              "database/scraping-jobs",
+              "database/profiles",
+              "database/campaigns",
+              "database/assignments"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

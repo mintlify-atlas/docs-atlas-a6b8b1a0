@@ -1,0 +1,534 @@
+---
+title: 'VA Distribution'
+description: 'Distribute profiles to virtual assistants and manage campaign assignments'
+icon: 'share-nodes'
+---
+
+## Overview
+
+The VA Distribution system automates the process of distributing scraped Instagram/TikTok profiles to 80 virtual assistant tables. Each VA receives an equal portion of profiles for outreach campaigns.
+
+<Info>
+  **Default Configuration**: 80 VA tables with 180 profiles each = 14,400 total profiles per campaign
+</Info>
+
+## Distribution Workflow
+
+The assignment process consists of three sequential phases:
+
+<Steps>
+  <Step title="Creating Campaign (0-33%)">
+    **Action**: Creates a new campaign record and selects unused profiles
+    
+    **Backend**: `POST /api/daily-selection`
+    
+    **What Happens**:
+    - New `campaign_id` is generated
+    - Selects N unused profiles from `global_usernames` (where `used = false`)
+    - Marks selected profiles as `used = true` to prevent reuse
+    - Creates campaign record with date and total count
+  </Step>
+  
+  <Step title="Distributing (33-66%)">
+    **Action**: Distributes profiles across 80 VA tables
+    
+    **Backend**: `POST /api/distribute/{campaign_id}`
+    
+    **What Happens**:
+    - Profiles are evenly divided: `total_profiles / 80`
+    - Each VA table gets assigned a batch with `va_table_number` (1-80)
+    - Assignments are saved to `daily_assignments` table
+    - Each assignment includes: `username`, `full_name`, `va_table_number`, `position`
+  </Step>
+  
+  <Step title="Syncing to Airtable (66-100%)">
+    **Action**: Pushes profiles to 80 Airtable tables
+    
+    **Backend**: `POST /api/airtable-sync/{campaign_id}`
+    
+    **What Happens**:
+    - Connects to Airtable API using base URL
+    - Creates/updates records in each VA table (Table 1 - Table 80)
+    - Each record contains: username, full name, Instagram URL
+    - VAs can now access profiles in their Airtable workspace
+  </Step>
+</Steps>
+
+## Creating a Distribution Campaign
+
+### Method 1: Fixed 180 per VA
+
+Distributes exactly 180 profiles to each of the 80 VAs (14,400 total).
+
+<Steps>
+  <Step title="Open Assignment Menu">
+    In the **Extracted Accounts** table, click the dropdown menu (⋮) in the top-right corner.
+  </Step>
+  
+  <Step title="Select Fixed Assignment">
+    Click **"Assign 180 accounts per VA"**
+    
+    A confirmation dialog appears showing:
+    - Total required: 14,400 profiles
+    - Current available profiles count
+  </Step>
+  
+  <Step title="Confirm Assignment">
+    Click **Confirm** to start the distribution.
+    
+    <Warning>
+      This action requires exactly 14,400 unused profiles. If you don't have enough, an error will be displayed.
+    </Warning>
+  </Step>
+  
+  <Step title="Monitor Progress">
+    A progress bar tracks the three phases:
+    - 📋 Creating campaign and selecting profiles... (0-33%)
+    - 🎲 Distributing to VA tables... (33-66%)
+    - ☁️ Syncing to Airtable... (66-100%)
+    - ✅ Complete! (100%)
+  </Step>
+</Steps>
+
+### Method 2: Custom Assignment
+
+Specify a custom number of profiles per VA.
+
+<Steps>
+  <Step title="Open Custom Dialog">
+    Click dropdown menu (⋮) → **"Custom VA Assignment..."**
+  </Step>
+  
+  <Step title="Enter Profiles Per VA">
+    In the dialog, enter your desired number (e.g., 50, 100, 250)
+    
+    **Total Required** = `profiles_per_va × 80`
+    
+    Examples:
+    - 50 per VA = 4,000 total
+    - 100 per VA = 8,000 total
+    - 250 per VA = 20,000 total
+  </Step>
+  
+  <Step title="Confirm and Execute">
+    Click **Confirm** to start the custom distribution.
+  </Step>
+</Steps>
+
+## Progress Tracking
+
+The distribution progress is managed globally using the `AssignmentProgressContext`.
+
+### Progress States
+
+```typescript
+type ProgressStep = 'idle' | 'creating' | 'distributing' | 'syncing' | 'complete'
+```
+
+### Progress Percentage Mapping
+
+| Phase | Progress Range | Visual Indicator |
+|-------|----------------|------------------|
+| Idle | 0% | No progress bar |
+| Creating | 10-33% | 📋 Creating campaign... |
+| Distributing | 40-66% | 🎲 Distributing to VA tables... |
+| Syncing | 75-100% | ☁️ Syncing to Airtable... |
+| Complete | 100% | ✅ Complete! |
+
+### UI Integration
+
+```jsx
+import { useAssignmentProgress } from '@/contexts/assignment-progress-context'
+
+function MyComponent() {
+  const { isAssigning, progress, progressStep } = useAssignmentProgress()
+  
+  return (
+    <>
+      {progressStep !== 'idle' && (
+        <div>
+          <span>{progressStep === 'creating' && '📋 Creating campaign...'}</span>
+          <Progress value={progress} />
+        </div>
+      )}
+    </>
+  )
+}
+```
+
+## Database Schema
+
+### campaigns Table
+
+Tracks all distribution campaigns:
+
+```sql
+CREATE TABLE campaigns (
+  campaign_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  campaign_date DATE NOT NULL,
+  total_assigned INTEGER NOT NULL,
+  status BOOLEAN DEFAULT FALSE,
+  base_id TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**Columns**:
+- `campaign_id`: Unique identifier for the campaign
+- `campaign_date`: Date when campaign was created
+- `total_assigned`: Number of profiles distributed (e.g., 14400)
+- `status`: `true` = success, `false` = failed
+- `base_id`: Multi-tenant isolation (job/client ID)
+
+### daily_assignments Table
+
+Stores individual profile assignments:
+
+```sql
+CREATE TABLE daily_assignments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  campaign_id UUID REFERENCES campaigns(campaign_id),
+  username TEXT NOT NULL,
+  full_name TEXT,
+  va_table_number INTEGER NOT NULL,
+  position INTEGER NOT NULL,
+  status TEXT DEFAULT 'pending',
+  base_id TEXT NOT NULL,
+  job_id UUID,
+  assigned_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**Columns**:
+- `campaign_id`: Links to parent campaign
+- `username`: Instagram/TikTok username
+- `full_name`: Display name
+- `va_table_number`: Which VA table (1-80)
+- `position`: Order within the VA's list (1-180)
+- `status`: Track assignment status (pending/completed/failed)
+
+## API Endpoints
+
+### 1. Daily Selection
+
+**Endpoint**: `POST /api/daily-selection`
+
+**Request Body**:
+```json
+{
+  "profiles_per_table": 180
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "campaign_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "total_selected": 14400,
+  "campaign_date": "2025-10-24"
+}
+```
+
+**Implementation**:
+```javascript
+const selectionResult = await apiPost('/api/daily-selection', baseId, {
+  profiles_per_table: 180
+})
+
+const campaignId = selectionResult.campaign_id
+```
+
+### 2. Distribute
+
+**Endpoint**: `POST /api/distribute/{campaign_id}`
+
+**Request Body**:
+```json
+{
+  "profiles_per_table": 180
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "campaign_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "va_tables": 80,
+  "profiles_per_table": 180
+}
+```
+
+**What It Does**:
+- Queries `global_usernames` for selected profiles (marked `used = true` for this campaign)
+- Divides profiles evenly across 80 tables
+- Creates records in `daily_assignments` with `va_table_number` and `position`
+
+### 3. Airtable Sync
+
+**Endpoint**: `POST /api/airtable-sync/{campaign_id}`
+
+**Response**:
+```json
+{
+  "success": true,
+  "campaign_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "tables_synced": 80,
+  "total_records": 14400
+}
+```
+
+**Process**:
+1. Fetches all assignments for the campaign from `daily_assignments`
+2. Groups by `va_table_number` (1-80)
+3. For each VA table, pushes records to Airtable using the Airtable API
+4. Handles rate limiting with built-in delays
+
+## Campaign History
+
+View all past distribution campaigns in the **Campaigns** table.
+
+Location: `components/campaigns-table.tsx`
+
+### Features
+
+- **Chronological List**: Most recent campaigns first
+- **Status Indicators**: Color-coded success/failure dots
+- **Campaign Metadata**: Date, total assigned, status
+- **Auto-refresh**: Updates after new campaigns complete
+
+### Status Indicators
+
+<Tabs>
+  <Tab title="Success">
+    **Indicator**: 🟢 Green dot
+    
+    **Status**: `true`
+    
+    **Meaning**: All three phases completed successfully. Profiles are in Airtable and VAs can start outreach.
+  </Tab>
+  
+  <Tab title="Failed">
+    **Indicator**: 🔴 Red dot
+    
+    **Status**: `false`
+    
+    **Meaning**: One or more phases failed (e.g., Airtable sync error, insufficient profiles, API timeout).
+  </Tab>
+</Tabs>
+
+### Campaign Table UI
+
+| Date | Total Assigned | Status |
+|------|----------------|--------|
+| Oct 24, 2025 | 14,400 | 🟢 success |
+| Oct 23, 2025 | 14,400 | 🟢 success |
+| Oct 22, 2025 | 8,000 | 🔴 failed |
+
+## Multi-Tenant Isolation
+
+All distribution operations are scoped to the active job's `base_id`:
+
+```javascript
+// Require baseId from context
+const { baseId } = useBase()
+
+if (!baseId) {
+  toast({
+    title: "No active job",
+    description: "Please select an active scraping job first",
+    variant: "destructive"
+  })
+  return
+}
+
+// All API calls include baseId for tenant isolation
+await apiPost('/api/daily-selection', baseId, { profiles_per_table: 180 })
+```
+
+<Warning>
+  Never execute distribution operations without a valid `base_id`. This ensures profiles are isolated per client/job.
+</Warning>
+
+## Validation & Error Handling
+
+### Pre-flight Checks
+
+Before starting distribution:
+
+1. **Base ID Validation**
+   ```javascript
+   if (!baseId) {
+     toast({ title: "No active job", variant: "destructive" })
+     return
+   }
+   ```
+
+2. **Profile Availability Check** (for 180 fixed assignment)
+   ```javascript
+   const { count } = await supabase
+     .from('global_usernames')
+     .select('*', { count: 'exact', head: true })
+     .eq('base_id', baseId)
+     .eq('used', false)
+   
+   if (count < 14400) {
+     toast({ title: "Not enough profiles", variant: "destructive" })
+     return
+   }
+   ```
+
+### Error Recovery
+
+If a phase fails:
+
+1. **Campaign Creation Failed**
+   - No profiles are marked as used
+   - User can retry immediately
+
+2. **Distribution Failed**
+   - Campaign record exists but incomplete
+   - Profiles remain marked as `used = true`
+   - Run cleanup to free profiles or retry with more profiles
+
+3. **Airtable Sync Failed**
+   - Campaign and assignments exist in database
+   - Retry sync by calling `/api/airtable-sync/{campaign_id}` manually
+   - VAs won't see profiles until sync completes
+
+## Component Architecture
+
+### PaymentsTable Component
+
+Handles the distribution UI and workflow orchestration:
+
+```typescript
+const handleAssignToVAs = async (profilesPerTable?: number) => {
+  startAssignment() // Global progress context
+  
+  try {
+    // Phase 1: Create campaign
+    updateProgress(10, 'creating')
+    const selectionResult = await apiPost('/api/daily-selection', baseId, {
+      profiles_per_table: profilesPerTable || defaultProfilesPerTable
+    })
+    
+    // Phase 2: Distribute
+    updateProgress(40, 'distributing')
+    await apiPost(`/api/distribute/${campaignId}`, baseId, {
+      profiles_per_table: profilesPerTable
+    })
+    
+    // Phase 3: Sync to Airtable
+    updateProgress(75, 'syncing')
+    await apiPost(`/api/airtable-sync/${campaignId}`, baseId)
+    
+    completeAssignment(profilesPerTable)
+  } catch (error) {
+    failAssignment()
+  }
+}
+```
+
+### Assignment Progress Context
+
+Global state management for progress tracking:
+
+```typescript
+interface AssignmentProgressContextType {
+  isAssigning: boolean
+  progress: number
+  progressStep: 'idle' | 'creating' | 'distributing' | 'syncing' | 'complete'
+  startAssignment: () => void
+  updateProgress: (progress: number, step: ProgressStep) => void
+  completeAssignment: (profilesPerTable: number) => void
+  failAssignment: () => void
+}
+```
+
+## Troubleshooting
+
+### "Campaign creation failed"
+
+**Common Causes**:
+- Insufficient unused profiles in `global_usernames`
+- Database connection lost
+- RLS policies blocking inserts
+
+**Solutions**:
+1. Check available profiles: `SELECT COUNT(*) FROM global_usernames WHERE used = false AND base_id = ?`
+2. Verify Supabase connection in backend
+3. Run more scraping campaigns to increase pool size
+
+### "Distribution failed"
+
+**Common Causes**:
+- Invalid `campaign_id` reference
+- Profiles were deleted or modified mid-process
+- Database timeout
+
+**Solutions**:
+1. Check backend logs for detailed error messages
+2. Verify campaign exists: `SELECT * FROM campaigns WHERE campaign_id = ?`
+3. Retry distribution with the same `campaign_id`
+
+### "Airtable sync failed"
+
+**Common Causes**:
+- Invalid Airtable API key
+- Incorrect base ID
+- Airtable rate limits exceeded
+- VA tables don't exist (Table 1 - Table 80)
+
+**Solutions**:
+1. Verify Airtable credentials in `.env`:
+   ```bash
+   AIRTABLE_API_KEY=your-api-key
+   AIRTABLE_BASE_ID=your-base-id
+   ```
+2. Check Airtable base has all 80 tables created
+3. Reduce batch size if hitting rate limits
+4. Retry sync: `POST /api/airtable-sync/{campaign_id}`
+
+### Profiles assigned but VAs can't see them
+
+**Symptoms**: Campaign shows success but Airtable tables are empty
+
+**Solutions**:
+1. Check Airtable workspace permissions (VAs need read access)
+2. Verify correct base ID is configured
+3. Manually check one VA table in Airtable to confirm records exist
+4. Re-run sync if needed
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Daily Distributions" icon="calendar-days">
+    Run one distribution campaign per day to maintain consistent VA workload.
+  </Card>
+  
+  <Card title="Monitor Success Rate" icon="chart-line">
+    Track campaign status in the Campaigns table. Investigate any failed campaigns immediately.
+  </Card>
+  
+  <Card title="Buffer Profiles" icon="shield">
+    Keep 20,000+ unused profiles to handle unexpected increases in VA count or profiles per VA.
+  </Card>
+  
+  <Card title="Test Small First" icon="flask">
+    When testing, use custom assignment with 10-20 profiles per VA to verify the full workflow.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Airtable Sync" href="/features/airtable-sync" icon="cloud">
+    Learn how Airtable integration works in detail
+  </Card>
+  
+  <Card title="API Reference" href="/api-reference/introduction" icon="code">
+    Explore the backend API endpoints
+  </Card>
+</CardGroup>

@@ -1,0 +1,514 @@
+---
+title: 'Instagram'
+description: 'Complete guide to Instagram scraping and automation'
+icon: 'instagram'
+---
+
+## Overview
+
+Instagram is the primary platform supported by the Click Creators Scraper Client. The system provides comprehensive follower scraping, gender-based filtering, and automated VA assignment workflows specifically optimized for Instagram marketing campaigns.
+
+<Info>
+Instagram is the most mature integration in the platform with full support for scraping, filtering, and campaign management.
+</Info>
+
+## Platform Status
+
+<CardGroup cols={2}>
+  <Card title="Current Status" icon="check-circle">
+    **Fully Active**
+    
+    All features are production-ready and actively used.
+  </Card>
+  
+  <Card title="Platform Type" icon="instagram">
+    **Primary Platform**
+    
+    Instagram is the core platform with the most extensive feature set.
+  </Card>
+</CardGroup>
+
+## Platform Configuration
+
+### Platform Identifier
+
+```typescript
+platform: 'instagram'
+```
+
+### Display Configuration
+
+```typescript
+instagram: {
+  label: 'Instagram',
+  icon: '📷',
+  color: '#E4405F'
+}
+```
+
+The Instagram platform uses the signature Instagram pink color (#E4405F) and camera emoji for visual identification throughout the UI.
+
+## Scraping Capabilities
+
+### What Can Be Scraped
+
+<CardGroup cols={2}>
+  <Card title="Follower Lists" icon="users">
+    Extract complete follower lists from source accounts
+  </Card>
+  
+  <Card title="Profile Data" icon="user">
+    Username, full name, follower/following counts, bio, verification status
+  </Card>
+  
+  <Card title="Gender Detection" icon="venus-mars">
+    Name-based gender filtering to identify male profiles
+  </Card>
+  
+  <Card title="Profile Validation" icon="shield-check">
+    Private/public status, verification badges, account activity
+  </Card>
+</CardGroup>
+
+### Data Fields Extracted
+
+The scraper collects the following profile information:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | Text | Instagram profile ID |
+| `username` | Text | Instagram handle |
+| `full_name` | Text | Display name |
+| `follower_count` | Integer | Number of followers |
+| `following_count` | Integer | Number of accounts following |
+| `post_count` | Integer | Total posts |
+| `is_verified` | Boolean | Verification badge status |
+| `is_private` | Boolean | Account privacy setting |
+| `biography` | Text | Profile bio text |
+| `url` | Text | Profile URL |
+| `detected_gender` | Text | Gender detection result |
+
+## Platform-Specific Features
+
+### Source Account Management
+
+Configure Instagram accounts to scrape followers from:
+
+<Steps>
+  <Step title="Add Source Profiles">
+    Navigate to the Dependencies Card and click "Edit Source Profiles"
+  </Step>
+  
+  <Step title="Enter Account Details">
+    Add Instagram usernames or URLs (e.g., `username` or `https://instagram.com/username`)
+  </Step>
+  
+  <Step title="Validation">
+    System automatically validates Instagram URLs and extracts usernames
+  </Step>
+  
+  <Step title="Save to Database">
+    Profiles are stored in the `source_profiles` table
+  </Step>
+</Steps>
+
+### Gender-Based Filtering
+
+Instagram scraping includes advanced gender detection:
+
+<Note>
+The system uses name-based detection algorithms to identify male profiles, which is the primary target for most campaigns.
+</Note>
+
+**Gender Distribution Tracking:**
+- Male profiles (primary target)
+- Female profiles (filtered out)
+- Unknown (ambiguous names)
+
+**Example Response:**
+```json
+{
+  "genderDistribution": {
+    "male": 450,
+    "female": 400,
+    "unknown": 150
+  }
+}
+```
+
+### Deduplication System
+
+Instagram profiles are deduplicated using a two-table strategy:
+
+1. **raw_scraped_profiles** - Stores all scraped data
+2. **global_usernames** - Prevents duplicate assignments
+
+<Warning>
+Once a username is marked as `used`, it will not be assigned in future campaigns to prevent duplicate outreach.
+</Warning>
+
+## Scraping Workflow
+
+### Complete Instagram Campaign Workflow
+
+<Steps>
+  <Step title="Configure Source Accounts">
+    Add Instagram accounts with target audience followers
+    
+    ```typescript
+    // Add multiple source accounts
+    const sources = [
+      'fitness_influencer',
+      'health_coach',
+      'workout_guru'
+    ];
+    ```
+  </Step>
+  
+  <Step title="Run Follower Scraper">
+    Click "Find Accounts" to initiate scraping
+    
+    - Progress: 0-50% (Scraping phase)
+    - Uses Apify Instagram Follower Scraper
+    - Applies gender filtering in real-time
+  </Step>
+  
+  <Step title="Auto-Ingest to Database">
+    Profiles automatically saved after scraping
+    
+    - Progress: 60-80% (Ingesting phase)
+    - Saves to `raw_scraped_profiles`
+    - Updates `global_usernames` table
+    - Deduplicates existing profiles
+  </Step>
+  
+  <Step title="Create Daily Campaign">
+    Click "Assign to VAs" when ready
+    
+    - Selects 14,400 unused profiles
+    - Creates campaign record
+    - Marks profiles as used
+  </Step>
+  
+  <Step title="Distribute to VAs">
+    Automatic distribution across VA teams
+    
+    - 80 VA tables
+    - 180 profiles per VA
+    - Even distribution algorithm
+  </Step>
+  
+  <Step title="Sync to Airtable">
+    Push profiles to Airtable workspace
+    
+    - 80 separate Airtable tables
+    - Real-time sync progress
+    - Rate limit handling
+  </Step>
+</Steps>
+
+## Configuration Options
+
+### Creating an Instagram Scraping Job
+
+When creating a new Instagram scraping job:
+
+```typescript
+interface InstagramJobConfig {
+  influencer_name: string;  // Target influencer or brand
+  platform: 'instagram';     // Platform identifier
+  airtable_base_id: string;  // Airtable workspace URL
+  num_vas: number;           // Number of VAs (typically 80)
+  status: 'active';          // Initial status
+}
+```
+
+### Job Configuration Form
+
+<CardGroup cols={1}>
+  <Card title="Required Fields" icon="clipboard-list">
+    - **Influencer Name**: Target account name or campaign identifier
+    - **Platform**: Select "Instagram" from dropdown
+    - **Number of VAs**: Default 80 (adjustable based on campaign size)
+    - **Airtable Base**: URL to the Airtable workspace for this campaign
+  </Card>
+</CardGroup>
+
+## API Integration
+
+### Instagram-Specific Endpoints
+
+#### POST /api/scrape-followers
+
+Scrapes Instagram follower lists with gender filtering:
+
+```json
+{
+  "accounts": ["username1", "username2"],
+  "targetGender": "male"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "accounts": [...],
+    "totalScraped": 1000,
+    "totalFiltered": 450,
+    "genderDistribution": {
+      "male": 450,
+      "female": 400,
+      "unknown": 150
+    }
+  }
+}
+```
+
+#### POST /api/ingest
+
+Ingests Instagram profiles into the database:
+
+```json
+{
+  "profiles": [
+    {
+      "id": "12345678",
+      "username": "example_user",
+      "full_name": "John Doe",
+      "detected_gender": "male"
+    }
+  ]
+}
+```
+
+## Limitations and Considerations
+
+### Technical Limitations
+
+<Warning>
+**Rate Limiting**: Instagram imposes rate limits on scraping activities. The system includes built-in delays and retry logic to handle these limits gracefully.
+</Warning>
+
+<Note>
+**Private Accounts**: The scraper can identify private accounts but cannot extract follower data from them. Ensure source accounts are public.
+</Note>
+
+### Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Source Account Selection" icon="users">
+    Choose accounts with 10k+ followers for best results
+  </Card>
+  
+  <Card title="Gender Filter Accuracy" icon="chart-line">
+    Name-based detection is ~85-90% accurate. Review samples periodically.
+  </Card>
+  
+  <Card title="Scraping Frequency" icon="clock">
+    Recommended: Once per day per source account to avoid rate limits
+  </Card>
+  
+  <Card title="Data Freshness" icon="refresh">
+    Rotate source accounts monthly to ensure fresh audience data
+  </Card>
+</CardGroup>
+
+### Campaign Metrics
+
+**Daily Target Metrics:**
+- **Total Profiles**: 14,400 unique male profiles
+- **VA Distribution**: 80 virtual assistants
+- **Per VA**: 180 profiles each
+- **Campaign Lifecycle**: 7 days
+- **Weekly Capacity**: 1,008,000 profiles
+
+## Troubleshooting
+
+### Common Issues
+
+<AccordionGroup>
+  <Accordion title="Scraping Returns No Results">
+    **Possible Causes:**
+    - Source account is private
+    - Instagram rate limiting active
+    - Invalid account username
+    - Apify API quota exceeded
+    
+    **Solutions:**
+    - Verify account is public
+    - Wait 24 hours and retry
+    - Check username spelling
+    - Review Apify dashboard for quota status
+  </Accordion>
+  
+  <Accordion title="Gender Filter Not Working">
+    **Possible Causes:**
+    - Gender API key expired
+    - Name data missing from profiles
+    - Detection service unavailable
+    
+    **Solutions:**
+    - Verify `GENDER_API_KEY` in environment
+    - Check profile data includes `full_name`
+    - Review backend logs for API errors
+  </Accordion>
+  
+  <Accordion title="Duplicate Profiles Appearing">
+    **Possible Causes:**
+    - `global_usernames` table not updating
+    - Deduplication logic skipped
+    - Multiple campaigns running simultaneously
+    
+    **Solutions:**
+    ```sql
+    -- Check for duplicates
+    SELECT username, COUNT(*) 
+    FROM global_usernames 
+    GROUP BY username 
+    HAVING COUNT(*) > 1;
+    ```
+    
+    - Ensure `used` flag is set correctly
+    - Run campaigns sequentially, not in parallel
+  </Accordion>
+  
+  <Accordion title="Insufficient Profiles for Campaign">
+    **Possible Causes:**
+    - Not enough unused profiles in database
+    - Too many profiles marked as used
+    - Scraping didn't complete successfully
+    
+    **Solutions:**
+    ```sql
+    -- Check available profiles
+    SELECT COUNT(*) FROM global_usernames WHERE used = false;
+    ```
+    
+    - Run additional scraping jobs
+    - Consider running cleanup job to free old campaigns
+    - Verify scraping completed (check progress reached 100%)
+  </Accordion>
+</AccordionGroup>
+
+## Example Use Case
+
+### Fitness Influencer Campaign
+
+**Scenario:** Build a list of male fitness enthusiasts for a supplement brand
+
+<Steps>
+  <Step title="Identify Source Accounts">
+    Select 5-10 popular fitness influencers:
+    - @fitness_motivation (2M followers)
+    - @gym_life (1.5M followers)
+    - @workout_king (800K followers)
+  </Step>
+  
+  <Step title="Create Scraping Job">
+    ```typescript
+    {
+      influencer_name: "Fitness Campaign Q1 2026",
+      platform: "instagram",
+      num_vas: 80,
+      airtable_base_id: "appXXXXXXXXXXXXXX"
+    }
+    ```
+  </Step>
+  
+  <Step title="Run Scraper">
+    - Click "Find Accounts"
+    - Wait for scraping (10-30 minutes depending on account sizes)
+    - Gender filter applies automatically (male only)
+    - Profiles auto-ingest to database
+  </Step>
+  
+  <Step title="Launch Daily Campaigns">
+    - Day 1: Assign 14,400 profiles to 80 VAs
+    - Day 2-7: Repeat with fresh profiles
+    - Week 1 Total: 100,800 unique male fitness followers reached
+  </Step>
+</Steps>
+
+**Expected Results:**
+- 50,000+ profiles scraped
+- 25,000+ male profiles filtered
+- 14,400 profiles per day assigned
+- 7-day campaign reaches 100,800 unique users
+
+## Advanced Configuration
+
+### Customizing VA Distribution
+
+The default configuration uses 80 VAs with 180 profiles each, but this can be adjusted:
+
+```typescript
+// Standard configuration
+const standardConfig = {
+  num_vas: 80,
+  profiles_per_va: 180,
+  daily_total: 14400
+};
+
+// Small campaign
+const smallConfig = {
+  num_vas: 20,
+  profiles_per_va: 180,
+  daily_total: 3600
+};
+
+// Large campaign
+const largeConfig = {
+  num_vas: 100,
+  profiles_per_va: 200,
+  daily_total: 20000
+};
+```
+
+### Multi-Source Strategy
+
+For best results, use multiple complementary source accounts:
+
+<Tabs>
+  <Tab title="Single Niche">
+    Use 5-10 accounts in the same niche:
+    - Concentrated audience
+    - Higher relevance
+    - Better conversion rates
+  </Tab>
+  
+  <Tab title="Multi-Niche">
+    Mix accounts across related niches:
+    - Broader reach
+    - Audience diversity
+    - A/B testing opportunities
+  </Tab>
+  
+  <Tab title="Geographic">
+    Target location-specific accounts:
+    - Local influencers
+    - Regional brands
+    - Location-based campaigns
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Create Your First Job" icon="plus" href="/quickstart">
+    Set up an Instagram scraping job in under 5 minutes
+  </Card>
+  
+  <Card title="Configure Airtable" icon="table" href="/features/airtable-sync">
+    Connect your Airtable workspace for VA distribution
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api/profiles/scrape-followers">
+    Explore the complete API documentation
+  </Card>
+  
+  <Card title="Job Management" icon="tasks" href="/guides/creating-jobs">
+    Learn advanced job configuration and monitoring
+  </Card>
+</CardGroup>

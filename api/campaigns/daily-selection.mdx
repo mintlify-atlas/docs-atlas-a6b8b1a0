@@ -1,0 +1,199 @@
+---
+title: 'Daily Selection'
+description: 'Create a campaign and select 14,400 unused profiles for VA distribution'
+---
+
+## Overview
+
+The Daily Selection endpoint creates a new campaign and selects 14,400 unused male profiles from the global username pool. This is the first step in the campaign workflow before distributing profiles to Virtual Assistants.
+
+## Endpoint
+
+<ParamField path="method" type="string" default="POST">
+  POST
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  `/api/daily-selection`
+</ParamField>
+
+## Request
+
+This endpoint requires no request body or parameters. It automatically:
+
+- Creates a new campaign record
+- Selects 14,400 profiles where `used = false` from `global_usernames` table
+- Marks selected profiles as `used = true`
+- Records the campaign date and total assigned count
+
+<Note>
+Ensure you have at least 14,400 unused profiles in the `global_usernames` table before calling this endpoint. You can check available profiles using the Username Status Card in the dashboard.
+</Note>
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates whether the campaign was created successfully
+</ResponseField>
+
+<ResponseField name="campaign_id" type="string" required>
+  UUID of the newly created campaign
+</ResponseField>
+
+<ResponseField name="total_selected" type="number" required>
+  Number of profiles selected (should be 14,400)
+</ResponseField>
+
+<ResponseField name="campaign_date" type="string" required>
+  Date of the campaign in YYYY-MM-DD format
+</ResponseField>
+
+### Success Response Example
+
+```json
+{
+  "success": true,
+  "campaign_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "total_selected": 14400,
+  "campaign_date": "2025-10-06"
+}
+```
+
+### Error Response Example
+
+```json
+{
+  "success": false,
+  "error": "Insufficient profiles available",
+  "available_profiles": 8500,
+  "required_profiles": 14400
+}
+```
+
+## Workflow Integration
+
+The Daily Selection is part of a 3-step campaign creation workflow:
+
+1. **Daily Selection (0-33%)** - Creates campaign and selects 14,400 profiles
+2. **Distribution (33-66%)** - Distributes profiles to 80 VA tables (180 each)
+3. **Airtable Sync (66-100%)** - Pushes profiles to Airtable for VA access
+
+<CodeGroup>
+```typescript Frontend Implementation
+const handleAssignToVAs = async () => {
+  try {
+    setProgress(10);
+    setProgressMessage('Creating campaign...');
+    
+    // Step 1: Daily Selection
+    const selectionRes = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/daily-selection`,
+      { method: 'POST' }
+    );
+    
+    const selectionData = await selectionRes.json();
+    
+    if (!selectionData.success) {
+      throw new Error('Daily selection failed');
+    }
+    
+    const campaignId = selectionData.campaign_id;
+    setProgress(33);
+    
+    // Continue with distribution and sync...
+    
+  } catch (error) {
+    console.error('Campaign creation failed:', error);
+  }
+};
+```
+
+```bash cURL Example
+curl -X POST http://localhost:5001/api/daily-selection \
+  -H "Content-Type: application/json"
+```
+
+```python Python Example
+import requests
+
+response = requests.post(
+    'http://localhost:5001/api/daily-selection'
+)
+
+data = response.json()
+if data['success']:
+    campaign_id = data['campaign_id']
+    print(f"Campaign created: {campaign_id}")
+    print(f"Profiles selected: {data['total_selected']}")
+else:
+    print(f"Error: {data.get('error')}")
+```
+</CodeGroup>
+
+## Database Changes
+
+This endpoint modifies the following database tables:
+
+### campaigns table
+
+```sql
+INSERT INTO campaigns (
+  campaign_id,
+  campaign_date,
+  total_assigned,
+  status
+) VALUES (
+  uuid_generate_v4(),
+  CURRENT_DATE,
+  14400,
+  'pending'
+);
+```
+
+### global_usernames table
+
+```sql
+UPDATE global_usernames
+SET used = true
+WHERE username IN (
+  SELECT username 
+  FROM global_usernames 
+  WHERE used = false 
+  LIMIT 14400
+);
+```
+
+## Key Metrics
+
+- **Daily Target:** 14,400 unique male profiles
+- **Campaign Lifecycle:** 7 days before cleanup
+- **Total VAs:** 80 virtual assistants
+- **Profiles per VA:** 180 (calculated in distribution step)
+
+## Error Handling
+
+<Warning>
+Common failure scenarios:
+</Warning>
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Insufficient profiles | Less than 14,400 unused profiles available | Run scraping workflow to add more profiles |
+| Database connection error | Supabase connection failed | Check `SUPABASE_URL` and `SUPABASE_KEY` in backend .env |
+| Duplicate campaign | Campaign already exists for today | Campaigns are unique per date; wait until tomorrow or delete existing campaign |
+
+## Related Endpoints
+
+- [Distribute Profiles](/api/campaigns/distribute) - Next step: distribute to VA tables
+- [Airtable Sync](/api/campaigns/airtable-sync) - Final step: sync to Airtable
+- [Cleanup](/api/campaigns/cleanup) - Remove old campaigns after 7 days
+
+## Status Tracking
+
+After creation, the campaign status can be:
+
+- **pending** (⚪ Grey) - Campaign in progress
+- **success** (🟢 Green) - Campaign completed successfully
+- **failed** (🔴 Red) - Campaign encountered an error
+
+View campaign status in the Campaigns History table on the dashboard.

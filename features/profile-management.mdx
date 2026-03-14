@@ -1,0 +1,458 @@
+---
+title: 'Profile Management'
+description: 'View, monitor, and manage your scraped profile database'
+icon: 'users-viewfinder'
+---
+
+## Overview
+
+The profile management system provides a centralized dashboard to view scraped accounts, monitor your username pool status, and track assignment readiness. All profiles are automatically deduplicated and organized by job for multi-tenant isolation.
+
+## Extracted Accounts Table
+
+The main interface for viewing scraped profiles is the **Extracted Accounts** table, powered by the `PaymentsTable` component.
+
+Location: `components/payments-table.tsx`
+
+### Features
+
+- **Paginated Display**: Shows 10 accounts per page with Previous/Next navigation
+- **Profile Details**: Displays ID, full name, and username for each account
+- **Real-time Updates**: Automatically refreshes after scraping campaigns
+- **Assignment Actions**: Quick access to VA distribution workflows
+
+### Table Columns
+
+<CardGroup cols={4}>
+  <Card title="#" icon="hashtag">
+    Row number for easy reference
+  </Card>
+  
+  <Card title="ID" icon="fingerprint">
+    Unique Instagram/TikTok user ID
+  </Card>
+  
+  <Card title="Full Name" icon="id-card">
+    Display name from the profile
+  </Card>
+  
+  <Card title="Username" icon="at">
+    Platform username (e.g., @johndoe)
+  </Card>
+</CardGroup>
+
+## UI Workflow
+
+<Steps>
+  <Step title="View Scraped Profiles">
+    After running a scraping campaign, profiles automatically appear in the Extracted Accounts table.
+    
+    The header shows: **"{totalFiltered} filtered accounts found"**
+    
+    Example: "450 filtered accounts found" means 450 male profiles were scraped and saved.
+  </Step>
+  
+  <Step title="Navigate Pages">
+    Use the **Previous** and **Next** buttons at the bottom to browse through profiles.
+    
+    Page indicator: "Showing 10 of 450 accounts" and "1–10 of 450"
+  </Step>
+  
+  <Step title="Assign to VAs">
+    Click the dropdown menu (⋮) to access VA assignment options:
+    - **Assign 180 accounts per VA** - Fixed distribution (14,400 total)
+    - **Custom VA Assignment** - Specify profiles per VA
+  </Step>
+</Steps>
+
+## Username Pool Status
+
+Monitor your available username inventory with real-time status tracking.
+
+### Status Card
+
+Location: `components/username-status-card.tsx`
+
+**Displays**:
+- Total unused usernames available
+- Comparison to daily target (default: 14,400)
+- Status indicator (Ready/Warning)
+- Manual refresh button
+
+### Status Indicators
+
+<Tabs>
+  <Tab title="Ready">
+    **Color**: Grey
+    
+    **Condition**: Unused usernames ≥ 14,400
+    
+    **Message**: "Ready to assign"
+    
+    You have sufficient profiles to run a full VA distribution campaign.
+  </Tab>
+  
+  <Tab title="Warning">
+    **Color**: Red
+    
+    **Condition**: Unused usernames < 14,400
+    
+    **Message**: "Insufficient profiles"
+    
+    You need to run more scraping campaigns before distributing to VAs.
+  </Tab>
+</Tabs>
+
+<Info>
+  The daily target of 14,400 profiles is based on distributing 180 profiles to 80 VA tables. This can be customized via `NEXT_PUBLIC_DAILY_SELECTION_TARGET` in your environment variables.
+</Info>
+
+## Database Schema
+
+### global_usernames Table
+
+The primary table for deduplicated username storage:
+
+```sql
+CREATE TABLE global_usernames (
+  username TEXT PRIMARY KEY,
+  used BOOLEAN DEFAULT FALSE,
+  base_id TEXT NOT NULL,
+  job_id UUID,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**Columns Explained**:
+
+- `username`: Unique username (enforced at database level)
+- `used`: Boolean flag - `false` = available, `true` = assigned to a campaign
+- `base_id`: Multi-tenant isolation (Airtable base ID)
+- `job_id`: Reference to the scraping job that added this username
+- `created_at`: Timestamp when username was first scraped
+
+### scrape_results Table
+
+Stores full profile metadata:
+
+```sql
+CREATE TABLE scrape_results (
+  id TEXT PRIMARY KEY,
+  username TEXT,
+  full_name TEXT,
+  follower_count INTEGER,
+  following_count INTEGER,
+  post_count INTEGER,
+  is_verified BOOLEAN,
+  is_private BOOLEAN,
+  biography TEXT,
+  url TEXT,
+  detected_gender TEXT,
+  base_id TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**Rich Metadata**:
+- Social proof metrics (followers, following, posts)
+- Verification status
+- Account privacy level
+- Profile bio for targeting analysis
+- Gender detection results
+
+## Profile Lifecycle
+
+Understanding how profiles move through the system:
+
+<Steps>
+  <Step title="Scraping">
+    Profiles are extracted from source accounts via Apify and saved to `scrape_results`.
+  </Step>
+  
+  <Step title="Deduplication">
+    Usernames are added to `global_usernames` with `used = false`.
+    
+    Duplicates are automatically rejected by the PRIMARY KEY constraint.
+  </Step>
+  
+  <Step title="Available Pool">
+    Profiles remain in the unused pool until assigned to a campaign.
+    
+    Query: `SELECT COUNT(*) FROM global_usernames WHERE used = false AND base_id = ?`
+  </Step>
+  
+  <Step title="Campaign Assignment">
+    When a campaign is created, profiles are selected and marked `used = true`.
+    
+    This prevents the same profile from being assigned twice.
+  </Step>
+  
+  <Step title="VA Distribution">
+    Assigned profiles are distributed across VA tables and synced to Airtable.
+  </Step>
+  
+  <Step title="Cleanup (7 days)">
+    After 7 days, old campaigns are cleaned up and profiles are marked `used = false` again, returning them to the available pool.
+  </Step>
+</Steps>
+
+## Viewing Profile Statistics
+
+### Per-Job Statistics
+
+Location: `lib/scraping-jobs.ts` → `getJobStatisticsByBaseId()`
+
+**Metrics Available**:
+- `totalUsernames`: All profiles in the database for this job
+- `usedUsernames`: Profiles currently assigned to active campaigns
+- `availableUsernames`: Profiles ready to be assigned
+- `totalAssignments`: Total profiles distributed to VAs historically
+- `totalScrapeResults`: Raw scraping results count
+
+### Real-time Queries
+
+The platform uses Supabase real-time subscriptions for instant updates:
+
+```javascript
+// Available usernames count
+const { count } = await supabase
+  .from('global_usernames')
+  .select('*', { count: 'exact', head: true })
+  .eq('base_id', baseId)
+  .eq('used', false)
+```
+
+## Multi-Tenant Isolation
+
+All profile queries are scoped to the active job using `base_id`:
+
+<Warning>
+  **Critical**: Never query profiles without filtering by `base_id`. This ensures clients only see their own data in a multi-tenant environment.
+</Warning>
+
+### Context-Aware Client
+
+```javascript
+import { createSupabaseClientWithContext } from '@/lib/supabase'
+
+// Always pass base_id for tenant isolation
+const supabaseWithContext = createSupabaseClientWithContext(baseId)
+
+const { data } = await supabaseWithContext
+  .from('global_usernames')
+  .select('*')
+  .eq('base_id', baseId) // Belt-and-suspenders filtering
+  .eq('used', false)
+```
+
+## Assignment Readiness Checks
+
+Before assigning profiles to VAs, the system validates availability:
+
+### Fixed 180 Assignment
+
+**Required Profiles**: 14,400 (180 profiles × 80 VAs)
+
+**Validation Flow**:
+1. User clicks "Assign 180 accounts per VA"
+2. System queries unused username count for current `base_id`
+3. If `count >= 14400`: ✅ Proceed to campaign creation
+4. If `count < 14400`: ❌ Show error toast
+
+```javascript
+const { count } = await supabase
+  .from('global_usernames')
+  .select('*', { count: 'exact', head: true })
+  .eq('base_id', baseId)
+  .eq('used', false)
+
+if (count < 14400) {
+  toast({
+    title: "Not enough profiles",
+    description: "Please scrape more profiles before distributing.",
+    variant: "destructive"
+  })
+}
+```
+
+### Custom Assignment
+
+**User Configurable**: Specify profiles per VA (e.g., 50, 100, 250)
+
+**Required Profiles**: `profilesPerVA × 80`
+
+**Validation**: Checked during campaign creation (backend validation)
+
+## Profile Data Retention
+
+The platform implements a 7-day cleanup cycle:
+
+### Cleanup Workflow
+
+**Trigger**: Daily cron job at 2 AM
+
+**Endpoint**: `POST /api/cleanup`
+
+**Actions**:
+1. Identify campaigns older than 7 days
+2. Mark all profiles from those campaigns as `used = false`
+3. Delete campaign records
+4. Free up profiles for reassignment
+
+**Cron Configuration**:
+```bash
+# Add to crontab
+0 2 * * * curl -X POST http://localhost:5001/api/cleanup
+```
+
+<Note>
+  This allows profiles to be recycled after VAs complete outreach, maximizing your database efficiency.
+</Note>
+
+## Component Integration
+
+### PaymentsTable Props
+
+```typescript
+interface PaymentsTableProps {
+  accounts?: Account[]           // Scraped profiles to display
+  totalFiltered?: number          // Total male profiles found
+  isLoading?: boolean             // Loading state during scraping
+  onCampaignComplete?: () => void // Callback after VA assignment
+  canAssignToVAs?: boolean        // Enable/disable assignment button
+  statusMessage?: string          // Display status text
+}
+```
+
+### Integration Example
+
+```jsx
+import { PaymentsTable } from '@/components/payments-table'
+import { useState } from 'react'
+
+function Dashboard() {
+  const [accounts, setAccounts] = useState([])
+  const [totalFiltered, setTotalFiltered] = useState(0)
+  
+  const handleScrapingComplete = (accounts, total) => {
+    setAccounts(accounts)
+    setTotalFiltered(total)
+  }
+  
+  const handleCampaignComplete = () => {
+    // Refresh UI, reload username status, etc.
+    window.location.reload()
+  }
+  
+  return (
+    <PaymentsTable
+      accounts={accounts}
+      totalFiltered={totalFiltered}
+      onCampaignComplete={handleCampaignComplete}
+      canAssignToVAs={totalFiltered >= 14400}
+    />
+  )
+}
+```
+
+## Advanced Features
+
+### Skeleton Loading
+
+During scraping, the table displays animated skeleton rows:
+
+```jsx
+{isLoading
+  ? Array.from({ length: 10 }, (_, index) => (
+      <SkeletonRow key={`skeleton-${index}`} index={index} />
+    ))
+  : accounts.map((account) => <ProfileRow key={account.id} {...account} />)
+}
+```
+
+### Pagination State
+
+Pagination is managed with local component state:
+
+```javascript
+const [currentPage, setCurrentPage] = useState(0)
+const itemsPerPage = 10
+
+const startIndex = currentPage * itemsPerPage
+const endIndex = Math.min(startIndex + itemsPerPage, totalAccounts)
+const currentAccounts = accounts.slice(startIndex, endIndex)
+```
+
+## Troubleshooting
+
+### Profiles Not Appearing
+
+**Symptoms**: Table shows "No accounts to display" after scraping
+
+**Solutions**:
+1. Check if scraping completed successfully (progress bar reached 100%)
+2. Verify gender filter didn't exclude all results
+3. Check browser console for JavaScript errors
+4. Reload the page to refresh data
+
+### Duplicate Profiles
+
+**Symptoms**: Same username appearing multiple times
+
+**Cause**: Database constraint violation or RLS policy misconfiguration
+
+**Solutions**:
+1. Check `global_usernames` table has PRIMARY KEY on `username`
+2. Run deduplication query:
+   ```sql
+   DELETE FROM global_usernames a USING global_usernames b
+   WHERE a.ctid < b.ctid AND a.username = b.username;
+   ```
+
+### "Not enough profiles" Error
+
+**Symptoms**: Cannot assign to VAs despite having scraped profiles
+
+**Cause**: Profiles marked as `used = true` from previous campaigns
+
+**Solutions**:
+1. Run cleanup endpoint: `POST /api/cleanup`
+2. Manually reset profiles:
+   ```sql
+   UPDATE global_usernames 
+   SET used = false 
+   WHERE base_id = 'your-base-id' AND used = true;
+   ```
+3. Scrape more profiles to reach the 14,400 threshold
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Monitor Pool Size" icon="gauge">
+    Keep at least 20,000 unused profiles to ensure smooth daily operations.
+  </Card>
+  
+  <Card title="Regular Scraping" icon="calendar">
+    Schedule scraping campaigns daily to maintain a healthy profile pool.
+  </Card>
+  
+  <Card title="Review Gender Filter" icon="filter">
+    If male filter results are low, consider your source account's audience demographics.
+  </Card>
+  
+  <Card title="Cleanup Schedule" icon="broom">
+    Run the cleanup endpoint daily to recycle old campaign profiles.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="VA Distribution" href="/features/va-distribution" icon="share-nodes">
+    Learn how to distribute profiles to virtual assistants
+  </Card>
+  
+  <Card title="Airtable Sync" href="/features/airtable-sync" icon="cloud">
+    Sync profiles to Airtable for VA access
+  </Card>
+</CardGroup>

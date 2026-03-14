@@ -1,0 +1,460 @@
+---
+title: 'Username Management'
+description: 'Query and manage the global username pool with deduplication'
+---
+
+## Overview
+
+The username management functions provide programmatic access to query, add, and manage Instagram usernames in the deduplicated global pool. These utilities are defined in `lib/scraping-jobs.ts` and interact with the `global_usernames` table.
+
+<Note>
+  All username functions support multi-tenant isolation via `base_id`. Always pass the current base_id from the `useBase()` hook.
+</Note>
+
+## Core Functions
+
+### addUsernamesToJob
+
+Add usernames to a specific scraping job with automatic deduplication.
+
+```typescript
+addUsernamesToJob(
+  jobId: string,
+  baseId: string,
+  usernames: Array<{
+    id: string;
+    username: string;
+    full_name?: string;
+  }>
+): Promise<boolean>
+```
+
+<ParamField path="jobId" type="string" required>
+  The UUID of the scraping job to associate usernames with
+</ParamField>
+
+<ParamField path="baseId" type="string" required>
+  The base_id for multi-tenant isolation (from `useBase()` hook)
+</ParamField>
+
+<ParamField path="usernames" type="array" required>
+  Array of username objects to add. Each object must include:
+  - `id` - Instagram user ID
+  - `username` - Instagram username
+  - `full_name` - User's full name (optional)
+</ParamField>
+
+#### Example
+
+<CodeGroup>
+
+```typescript Usage
+import { addUsernamesToJob } from '@/lib/scraping-jobs'
+import { useBase } from '@/contexts/base-context'
+
+const { baseId } = useBase()
+
+const success = await addUsernamesToJob(
+  'job-uuid-here',
+  baseId,
+  [
+    {
+      id: '123456789',
+      username: 'johnsmith',
+      full_name: 'John Smith'
+    },
+    {
+      id: '987654321',
+      username: 'janedoe',
+      full_name: 'Jane Doe'
+    }
+  ]
+)
+
+if (success) {
+  console.log('Usernames added successfully')
+}
+```
+
+```typescript Component Integration
+import { addUsernamesToJob } from '@/lib/scraping-jobs'
+import { useBase } from '@/contexts/base-context'
+
+export function ProfileIngester() {
+  const { baseId } = useBase()
+  
+  const handleIngest = async (profiles: any[]) => {
+    // First, ingest to raw_scraped_profiles via API
+    await apiPost('/api/ingest', baseId, { profiles })
+    
+    // Then, add to job-specific username pool
+    const success = await addUsernamesToJob(
+      currentJobId,
+      baseId,
+      profiles.map(p => ({
+        id: p.id,
+        username: p.username,
+        full_name: p.full_name
+      }))
+    )
+    
+    return success
+  }
+  
+  // ...
+}
+```
+
+</CodeGroup>
+
+### getJobUsernames
+
+Retrieve all usernames associated with a specific job.
+
+```typescript
+getJobUsernames(
+  jobId: string,
+  onlyAvailable?: boolean
+): Promise<GlobalUsername[]>
+```
+
+<ParamField path="jobId" type="string" required>
+  The UUID of the scraping job
+</ParamField>
+
+<ParamField path="onlyAvailable" type="boolean" default={false}>
+  If `true`, only returns usernames where `used = false`
+</ParamField>
+
+#### Returns
+
+Array of `GlobalUsername` objects:
+
+<ResponseField name="username" type="string">
+  Instagram username (primary key)
+</ResponseField>
+
+<ResponseField name="used" type="boolean">
+  Whether this username has been assigned to a campaign
+</ResponseField>
+
+<ResponseField name="base_id" type="string">
+  Multi-tenant isolation identifier
+</ResponseField>
+
+<ResponseField name="job_id" type="string">
+  Associated scraping job UUID
+</ResponseField>
+
+<ResponseField name="created_at" type="timestamp">
+  When the username was added
+</ResponseField>
+
+#### Example
+
+<CodeGroup>
+
+```typescript Get All Usernames
+import { getJobUsernames } from '@/lib/scraping-jobs'
+
+const allUsernames = await getJobUsernames('job-uuid-here')
+
+console.log(`Total usernames: ${allUsernames.length}`)
+```
+
+```typescript Get Available Only
+import { getJobUsernames } from '@/lib/scraping-jobs'
+
+const availableUsernames = await getJobUsernames(
+  'job-uuid-here',
+  true // only available
+)
+
+console.log(`Available for assignment: ${availableUsernames.length}`)
+```
+
+```typescript Check Username Status
+import { getJobUsernames } from '@/lib/scraping-jobs'
+
+const usernames = await getJobUsernames('job-uuid-here')
+
+const usedCount = usernames.filter(u => u.used).length
+const availableCount = usernames.filter(u => !u.used).length
+
+console.log(`Used: ${usedCount}`)
+console.log(`Available: ${availableCount}`)
+```
+
+</CodeGroup>
+
+### getJobStatisticsByBaseId
+
+Get comprehensive statistics for a job by base_id, including username counts.
+
+```typescript
+getJobStatisticsByBaseId(
+  baseId: string
+): Promise<JobStatistics | null>
+```
+
+<ParamField path="baseId" type="string" required>
+  The base_id for multi-tenant isolation
+</ParamField>
+
+#### Returns
+
+<ResponseField name="totalUsernames" type="number">
+  Total count of all usernames in the pool
+</ResponseField>
+
+<ResponseField name="usedUsernames" type="number">
+  Count of usernames already assigned to campaigns
+</ResponseField>
+
+<ResponseField name="availableUsernames" type="number">
+  Count of usernames available for assignment (`used = false`)
+</ResponseField>
+
+<ResponseField name="totalAssignments" type="number">
+  Total count of assignments made from this base
+</ResponseField>
+
+<ResponseField name="totalScrapeResults" type="number">
+  Total count of scrape results for this base
+</ResponseField>
+
+#### Example
+
+<CodeGroup>
+
+```typescript Basic Usage
+import { getJobStatisticsByBaseId } from '@/lib/scraping-jobs'
+import { useBase } from '@/contexts/base-context'
+
+const { baseId } = useBase()
+
+const stats = await getJobStatisticsByBaseId(baseId)
+
+if (stats) {
+  console.log('Username Pool Statistics:')
+  console.log(`  Total: ${stats.totalUsernames}`)
+  console.log(`  Used: ${stats.usedUsernames}`)
+  console.log(`  Available: ${stats.availableUsernames}`)
+}
+```
+
+```typescript Check Campaign Readiness
+import { getJobStatisticsByBaseId } from '@/lib/scraping-jobs'
+import { useBase } from '@/contexts/base-context'
+
+const DAILY_TARGET = 14400
+const { baseId } = useBase()
+
+const stats = await getJobStatisticsByBaseId(baseId)
+
+if (!stats) {
+  console.error('Failed to fetch statistics')
+} else if (stats.availableUsernames < DAILY_TARGET) {
+  console.warn(`Insufficient usernames: ${stats.availableUsernames} / ${DAILY_TARGET}`)
+} else {
+  console.log('Ready for campaign creation')
+}
+```
+
+```typescript Component Example
+import { getJobStatisticsByBaseId } from '@/lib/scraping-jobs'
+import { useBase } from '@/contexts/base-context'
+import { useState, useEffect } from 'react'
+
+export function UsernameStatusCard() {
+  const { baseId } = useBase()
+  const [stats, setStats] = useState(null)
+  
+  useEffect(() => {
+    async function loadStats() {
+      const data = await getJobStatisticsByBaseId(baseId)
+      setStats(data)
+    }
+    loadStats()
+  }, [baseId])
+  
+  if (!stats) return <div>Loading...</div>
+  
+  return (
+    <div>
+      <h3>Username Pool Status</h3>
+      <p>Available: {stats.availableUsernames.toLocaleString()}</p>
+      <p>Used: {stats.usedUsernames.toLocaleString()}</p>
+      <p>Total: {stats.totalUsernames.toLocaleString()}</p>
+    </div>
+  )
+}
+```
+
+</CodeGroup>
+
+## Database Schema
+
+The username pool is stored in the `global_usernames` table:
+
+```sql
+CREATE TABLE global_usernames (
+  username TEXT PRIMARY KEY,
+  used BOOLEAN DEFAULT FALSE,
+  base_id TEXT,
+  job_id UUID,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### Key Constraints
+
+- **Primary Key:** `username` ensures global uniqueness
+- **Default Value:** `used` defaults to `false` for new usernames
+- **Multi-Tenant:** `base_id` provides isolation between different Airtable bases
+- **Job Association:** `job_id` links usernames to specific scraping jobs
+
+## Deduplication Strategy
+
+<Note>
+  The platform uses a two-table deduplication approach to balance data retention with assignment efficiency.
+</Note>
+
+### Raw Scraped Profiles
+
+Stores **all** scraped profile data:
+- Full profile details (bio, follower counts, etc.)
+- No uniqueness constraint
+- Used for historical reference and analytics
+
+### Global Usernames
+
+Maintains **unique** username pool:
+- Only username, job_id, and usage status
+- Enforces uniqueness constraint
+- Used for campaign assignment
+- Prevents duplicate assignments
+
+### How It Works
+
+1. **Scraping** - Profiles scraped via `/api/scrape-followers`
+2. **Ingestion** - All profiles saved to `raw_scraped_profiles`
+3. **Deduplication** - Unique usernames extracted and added to `global_usernames`
+4. **Assignment** - Daily campaigns select from `global_usernames` where `used = false`
+5. **Marking Used** - Selected usernames marked as `used = true`
+6. **Cleanup** - After 7 days, old campaigns are cleaned and usernames can be reused
+
+## Usage Workflow
+
+Typical username management workflow:
+
+```typescript
+import { 
+  addUsernamesToJob, 
+  getJobUsernames,
+  getJobStatisticsByBaseId 
+} from '@/lib/scraping-jobs'
+import { useBase } from '@/contexts/base-context'
+
+const { baseId } = useBase()
+const jobId = 'your-job-id'
+
+// 1. Add scraped usernames to job
+const success = await addUsernamesToJob(
+  jobId,
+  baseId,
+  scrapedProfiles.map(p => ({
+    id: p.id,
+    username: p.username,
+    full_name: p.full_name
+  }))
+)
+
+// 2. Check statistics
+const stats = await getJobStatisticsByBaseId(baseId)
+console.log(`Available: ${stats.availableUsernames}`)
+
+// 3. Verify sufficient usernames for daily target
+const DAILY_TARGET = 14400
+if (stats.availableUsernames >= DAILY_TARGET) {
+  console.log('Ready for campaign creation')
+}
+
+// 4. Query specific usernames if needed
+const availableUsernames = await getJobUsernames(jobId, true)
+console.log(`Can assign ${availableUsernames.length} profiles`)
+```
+
+## Best Practices
+
+<Note>
+  **Always pass base_id** - All username functions require base_id for proper multi-tenant isolation.
+</Note>
+
+1. **Use getJobStatisticsByBaseId** - Prefer this over deprecated `getJobStatistics` for accurate counts
+2. **Check availability before campaigns** - Verify sufficient unused usernames before creating daily campaigns
+3. **Monitor duplicate rates** - Track duplicates during ingestion to gauge scraping quality
+4. **Batch operations** - Add usernames in batches rather than individually
+5. **Handle errors gracefully** - Functions return `null` or `false` on error, always check return values
+
+## Multi-Tenant Isolation
+
+The username pool supports multi-tenancy via `base_id`:
+
+- Each Airtable base has its own isolated username pool
+- Usernames are not shared across bases
+- Statistics are calculated per base_id
+- Assignments are scoped to base_id
+
+<Warning>
+  **Always provide base_id** - Functions like `addUsernamesToJob` will fail if base_id is missing or null.
+</Warning>
+
+## Integration with Campaign System
+
+Username management integrates with the campaign workflow:
+
+1. **Daily Selection** - `/api/daily-selection` queries `global_usernames` for 14,400 unused usernames
+2. **Assignment** - Selected usernames marked as `used = true`
+3. **Distribution** - Usernames distributed across 80 VA tables (180 each)
+4. **Cleanup** - After 7 days, old campaigns cleaned and usernames reset to `used = false`
+
+## Related Functions
+
+- [getActiveJob](/api/scraping-jobs/list) - Get the currently active scraping job
+- [getActiveBaseId](/api/scraping-jobs/list#getactivebaseid) - Get base_id from active job
+- [createJobAssignments](/database/assignments) - Create campaign assignments
+
+## Error Handling
+
+Common error scenarios:
+
+```typescript
+import { addUsernamesToJob } from '@/lib/scraping-jobs'
+
+// Missing base_id
+try {
+  await addUsernamesToJob(jobId, null, usernames)
+} catch (error) {
+  console.error('base_id is required for adding usernames')
+}
+
+// Duplicate usernames (handled silently)
+const success = await addUsernamesToJob(jobId, baseId, [
+  { id: '1', username: 'duplicate' },
+  { id: '2', username: 'duplicate' } // Silently skipped
+])
+
+// Database connection error
+const stats = await getJobStatisticsByBaseId(baseId)
+if (!stats) {
+  console.error('Failed to fetch statistics - check database connection')
+}
+```
+
+## Performance Considerations
+
+- **Indexed Queries** - All queries use indexed fields (username, base_id, job_id)
+- **Batch Inserts** - `addUsernamesToJob` uses single transaction for all usernames
+- **Count Optimization** - Statistics use Supabase `count: 'exact'` for accurate counts
+- **Caching** - Consider caching statistics for frequently accessed data

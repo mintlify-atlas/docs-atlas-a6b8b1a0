@@ -1,0 +1,433 @@
+---
+title: 'Update Scraping Jobs'
+description: 'Update scraping job configuration and status'
+---
+
+## Overview
+
+Update existing scraping jobs with new configuration or status. The library provides functions for general updates and specific status changes.
+
+## Update Job
+
+### Function Signature
+
+```typescript
+export async function updateJob(
+  jobId: string,
+  updates: UpdateScrapingJobInput
+): Promise<boolean>
+```
+
+Update any fields of a scraping job.
+
+### Parameters
+
+<ParamField path="jobId" type="string" required>
+  The UUID of the job to update
+</ParamField>
+
+<ParamField path="updates" type="UpdateScrapingJobInput" required>
+  Object containing the fields to update
+  
+  <Expandable title="UpdateScrapingJobInput properties">
+    <ParamField path="influencer_name" type="string">
+      Update the influencer name
+    </ParamField>
+    
+    <ParamField path="platform" type="Platform">
+      Change the platform (instagram, threads, tiktok, or x)
+    </ParamField>
+    
+    <ParamField path="airtable_base_id" type="string">
+      Update the Airtable base ID
+      
+      <Note>
+      Changing the base_id will affect multi-tenant data isolation. Use with caution.
+      </Note>
+    </ParamField>
+    
+    <ParamField path="num_vas" type="number">
+      Update the number of VAs assigned
+    </ParamField>
+    
+    <ParamField path="status" type="JobStatus">
+      Change the job status (active, paused, or archived)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Response
+
+Returns `true` if the update succeeded, `false` if it failed.
+
+### Examples
+
+<CodeGroup>
+```typescript Update Influencer Name
+import { updateJob } from '@/lib/scraping-jobs';
+
+const success = await updateJob(
+  '123e4567-e89b-12d3-a456-426614174000',
+  { influencer_name: 'Jane Doe' }
+);
+
+if (success) {
+  console.log('Job updated successfully');
+} else {
+  console.error('Failed to update job');
+}
+```
+
+```typescript Update Multiple Fields
+import { updateJob } from '@/lib/scraping-jobs';
+
+const success = await updateJob(jobId, {
+  num_vas: 10,
+  status: 'active',
+  influencer_name: 'John Smith'
+});
+
+if (success) {
+  console.log('Job updated');
+}
+```
+
+```typescript React Component
+import { updateJob } from '@/lib/scraping-jobs';
+import { useState } from 'react';
+
+function EditJobForm({ jobId }: { jobId: string }) {
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSaving(true);
+
+    const formData = new FormData(e.currentTarget);
+    const success = await updateJob(jobId, {
+      influencer_name: formData.get('name') as string,
+      num_vas: Number(formData.get('numVas'))
+    });
+
+    if (success) {
+      alert('Job updated!');
+    } else {
+      alert('Update failed');
+    }
+
+    setSaving(false);
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input name="name" placeholder="Influencer name" />
+      <input name="numVas" type="number" placeholder="Number of VAs" />
+      <button type="submit" disabled={saving}>
+        {saving ? 'Saving...' : 'Save'}
+      </button>
+    </form>
+  );
+}
+```
+</CodeGroup>
+
+---
+
+## Update Job Status
+
+### Function Signature
+
+```typescript
+export async function updateJobStatus(
+  jobId: string,
+  status: JobStatus
+): Promise<boolean>
+```
+
+Convenience function to update only the job status.
+
+### Parameters
+
+<ParamField path="jobId" type="string" required>
+  The UUID of the job to update
+</ParamField>
+
+<ParamField path="status" type="JobStatus" required>
+  The new status:
+  - `active` - Resume or activate the job
+  - `paused` - Temporarily pause the job
+  - `archived` - Archive the job
+</ParamField>
+
+### Response
+
+Returns `true` if the status update succeeded, `false` if it failed.
+
+### Example
+
+<CodeGroup>
+```typescript Basic Usage
+import { updateJobStatus } from '@/lib/scraping-jobs';
+
+// Pause a job
+const success = await updateJobStatus(jobId, 'paused');
+
+if (success) {
+  console.log('Job paused');
+}
+```
+
+```typescript Status Workflow
+import { updateJobStatus } from '@/lib/scraping-jobs';
+
+async function handleStatusChange(
+  jobId: string,
+  newStatus: 'active' | 'paused' | 'archived'
+) {
+  try {
+    await updateJobStatus(jobId, newStatus);
+    // Refresh job list or UI
+    await fetchJobs();
+  } catch (err) {
+    console.error('Error updating job status:', err);
+  }
+}
+```
+
+```typescript React Component
+import { updateJobStatus } from '@/lib/scraping-jobs';
+import { useState } from 'react';
+
+function JobStatusToggle({ jobId, currentStatus }) {
+  const [status, setStatus] = useState(currentStatus);
+  const [loading, setLoading] = useState(false);
+
+  async function handleStatusChange(newStatus: JobStatus) {
+    setLoading(true);
+    const success = await updateJobStatus(jobId, newStatus);
+    
+    if (success) {
+      setStatus(newStatus);
+    }
+    
+    setLoading(false);
+  }
+
+  return (
+    <div>
+      <button
+        onClick={() => handleStatusChange('active')}
+        disabled={loading || status === 'active'}
+      >
+        Active
+      </button>
+      <button
+        onClick={() => handleStatusChange('paused')}
+        disabled={loading || status === 'paused'}
+      >
+        Pause
+      </button>
+      <button
+        onClick={() => handleStatusChange('archived')}
+        disabled={loading || status === 'archived'}
+      >
+        Archive
+      </button>
+    </div>>
+  );
+}
+```
+</CodeGroup>
+
+---
+
+## Convenience Status Functions
+
+The library provides dedicated functions for common status changes:
+
+### Activate Job
+
+```typescript
+export async function activateJob(jobId: string): Promise<boolean>
+```
+
+Set job status to 'active'.
+
+```typescript
+import { activateJob } from '@/lib/scraping-jobs';
+
+const success = await activateJob(jobId);
+```
+
+### Pause Job
+
+```typescript
+export async function pauseJob(jobId: string): Promise<boolean>
+```
+
+Set job status to 'paused'.
+
+```typescript
+import { pauseJob } from '@/lib/scraping-jobs';
+
+const success = await pauseJob(jobId);
+```
+
+### Archive Job
+
+```typescript
+export async function archiveJob(jobId: string): Promise<boolean>
+```
+
+Set job status to 'archived'. This is the recommended way to "delete" jobs (soft delete).
+
+```typescript
+import { archiveJob } from '@/lib/scraping-jobs';
+
+const success = await archiveJob(jobId);
+```
+
+---
+
+## Error Handling
+
+<Note>
+All update functions return boolean values instead of throwing errors. Check the return value and console for details.
+</Note>
+
+```typescript
+import { updateJob } from '@/lib/scraping-jobs';
+import { toast } from '@/components/ui/use-toast';
+
+const success = await updateJob(jobId, updates);
+
+if (!success) {
+  toast({
+    title: 'Update Failed',
+    description: 'Could not update the job. Check console for details.',
+    variant: 'destructive'
+  });
+  return;
+}
+
+// Proceed with successful update
+toast({
+  title: 'Success',
+  description: 'Job updated successfully'
+});
+```
+
+Common reasons for update failure:
+- Job ID does not exist
+- Invalid field values (e.g., invalid platform name)
+- Database connection issues
+- Permission issues
+
+---
+
+## Best Practices
+
+### 1. Verify Job Exists Before Updating
+
+```typescript
+import { getJobById, updateJob } from '@/lib/scraping-jobs';
+
+const job = await getJobById(jobId);
+
+if (!job) {
+  console.error('Job not found');
+  return;
+}
+
+const success = await updateJob(jobId, updates);
+```
+
+### 2. Use Status-Specific Functions When Appropriate
+
+```typescript
+// Instead of:
+await updateJob(jobId, { status: 'paused' });
+
+// Use:
+await pauseJob(jobId);
+```
+
+### 3. Validate Input Before Updating
+
+```typescript
+function isValidPlatform(platform: string): platform is Platform {
+  return ['instagram', 'threads', 'tiktok', 'x'].includes(platform);
+}
+
+if (!isValidPlatform(newPlatform)) {
+  console.error('Invalid platform');
+  return;
+}
+
+await updateJob(jobId, { platform: newPlatform });
+```
+
+### 4. Refresh Data After Updates
+
+```typescript
+// In React components
+const success = await updateJob(jobId, updates);
+
+if (success) {
+  // Refresh the job data
+  await refetchJob();
+  // Or refresh the entire list
+  await fetchJobs();
+}
+```
+
+---
+
+## Multi-Tenant Considerations
+
+<Note>
+Changing the `airtable_base_id` or `base_id` will affect data isolation. Existing usernames, assignments, and scrape results will remain associated with the old base_id.
+</Note>
+
+If you need to change the base_id:
+
+1. Consider creating a new job instead
+2. If updating is necessary, migrate related data manually
+3. Update all references to the old base_id
+
+```typescript
+// Changing base_id requires careful consideration
+const success = await updateJob(jobId, {
+  airtable_base_id: newBaseId
+});
+
+if (success) {
+  // You may need to migrate usernames, assignments, etc.
+  console.warn('Base ID changed - check data associations');
+}
+```
+
+---
+
+## Related Functions
+
+- [`createScrapingJob`](/api/scraping-jobs/create) - Create a new job
+- [`getAllJobs`](/api/scraping-jobs/list) - Retrieve jobs
+- [`getJobById`](/api/scraping-jobs/list#get-single-job-by-id) - Get a specific job
+- [`getJobStatisticsByBaseId`](/api/scraping-jobs/statistics) - Get job statistics
+
+## Type Definitions
+
+```typescript
+type Platform = 'instagram' | 'threads' | 'tiktok' | 'x';
+
+type JobStatus = 'active' | 'paused' | 'archived';
+
+interface UpdateScrapingJobInput {
+  influencer_name?: string;
+  platform?: Platform;
+  airtable_base_id?: string;
+  num_vas?: number;
+  status?: JobStatus;
+}
+```

@@ -1,0 +1,536 @@
+---
+title: 'Airtable Sync'
+description: 'Sync distributed profiles to Airtable for virtual assistant access'
+icon: 'cloud-arrow-up'
+---
+
+## Overview
+
+The Airtable Sync feature automatically pushes distributed profiles to 80 VA tables in your Airtable workspace. This gives virtual assistants instant access to their assigned profiles for outreach campaigns.
+
+<Info>
+  **Real-time Integration**: Profiles are synced immediately after distribution, typically completing in 2-5 minutes for 14,400 records.
+</Info>
+
+## How Airtable Sync Works
+
+### Architecture
+
+```
+Database (Supabase)           Airtable Workspace
+├── daily_assignments    →    ├── Table 1 (180 profiles)
+│   ├── VA 1 profiles    →    ├── Table 2 (180 profiles)
+│   ├── VA 2 profiles    →    ├── Table 3 (180 profiles)
+│   └── ...              →    └── ... (80 tables total)
+```
+
+### Sync Process
+
+<Steps>
+  <Step title="Fetch Assignments">
+    Query `daily_assignments` table for the campaign:
+    
+    ```sql
+    SELECT * FROM daily_assignments 
+    WHERE campaign_id = ? AND base_id = ?
+    ORDER BY va_table_number, position
+    ```
+  </Step>
+  
+  <Step title="Group by VA Table">
+    Organize profiles by `va_table_number` (1-80):
+    
+    ```javascript
+    const grouped = {
+      1: [profile1, profile2, ...], // 180 profiles for VA 1
+      2: [profile21, profile22, ...], // 180 profiles for VA 2
+      // ... 80 groups total
+    }
+    ```
+  </Step>
+  
+  <Step title="Batch Push to Airtable">
+    For each VA table, push records via Airtable API:
+    
+    ```javascript
+    await airtable.base(baseId)('Table 1').create([
+      { fields: { Username: 'johndoe', 'Full Name': 'John Doe', URL: '...' } },
+      // ... 179 more records
+    ])
+    ```
+  </Step>
+  
+  <Step title="Handle Rate Limits">
+    Airtable enforces rate limits:
+    - **5 requests/second** per base
+    - **10 records/batch** for create operations
+    
+    The backend implements automatic delays between batches.
+  </Step>
+  
+  <Step title="Update Campaign Status">
+    Mark campaign as `status = true` (success) or `status = false` (failed) in the `campaigns` table.
+  </Step>
+</Steps>
+
+## Setting Up Airtable Integration
+
+### 1. Create Airtable Workspace
+
+When creating a new scraping job, you'll be prompted to link an Airtable base.
+
+<Steps>
+  <Step title="Create Scraping Job">
+    Fill out the job configuration form:
+    - **Influencer Name**: e.g., "Nike Marketing"
+    - **Platform**: Instagram/TikTok/Threads/X
+    - **Number of VAs**: 80 (default)
+  </Step>
+  
+  <Step title="Airtable Link Dialog">
+    After submitting, a **non-dismissible** dialog appears:
+    
+    **Instructions**:
+    1. Click the external link icon to open Airtable workspace
+    2. Create a new base in the workspace
+    3. Rename it to: `[Influencer Name]'s [Platform] Campaign`
+    4. Copy the base URL from your browser
+    5. Paste it into the dialog
+    
+    <Warning>
+      You cannot skip this step. The dialog requires a valid Airtable URL before proceeding.
+    </Warning>
+  </Step>
+  
+  <Step title="URL Validation">
+    The system validates the URL format:
+    
+    ```javascript
+    const airtablePattern = /^https?:\/\/(airtable\.com|www\.airtable\.com)\/.+/i
+    ```
+    
+    Valid examples:
+    - `https://airtable.com/appXYZ123/tblABC456`
+    - `https://www.airtable.com/appXYZ123`
+  </Step>
+  
+  <Step title="Progress Animation">
+    After submitting, a progress dialog shows a 3-second setup animation:
+    
+    **Progress**:
+    - 0% → 33% → 66% → 100%
+    - "Setting up your Airtable workspace..."
+    
+    Then redirects to the dashboard.
+  </Step>
+</Steps>
+
+### 2. Environment Configuration
+
+**Backend** (`.env`):
+
+```bash
+# Airtable API Configuration
+AIRTABLE_API_KEY=keyXXXXXXXXXXXXXX
+AIRTABLE_BASE_ID=appXXXXXXXXXXXXXX
+
+# Optional: Workspace ID for validation
+AIRTABLE_WORKSPACE_ID=wspQtCYFXE7T72rkW
+```
+
+**Getting Your API Key**:
+1. Go to https://airtable.com/create/tokens
+2. Create a new personal access token
+3. Grant scopes: `data.records:read`, `data.records:write`, `schema.bases:read`
+4. Copy the token and add to `.env`
+
+### 3. Airtable Base Structure
+
+Your Airtable base should have 80 tables named:
+- `Table 1`
+- `Table 2`
+- `Table 3`
+- ...
+- `Table 80`
+
+Each table should have these fields:
+
+| Field Name | Type | Description |
+|------------|------|-------------|
+| Username | Single line text | Instagram/TikTok username |
+| Full Name | Single line text | Display name from profile |
+| URL | URL | Direct link to profile |
+| Position | Number | Order within VA's list |
+| Status | Single select | Pending/Contacted/Completed |
+
+## Airtable Link Dialog Component
+
+Location: `components/airtable-link-dialog.tsx`
+
+### Features
+
+- **Non-dismissible**: Cannot close without submitting valid URL
+- **Step-by-step instructions**: Guides users through base creation
+- **URL validation**: Real-time validation of Airtable URLs
+- **External link**: Direct navigation to Airtable workspace
+- **Template naming**: Suggests `{influencerName}'s {platform} Campaign`
+
+### Props
+
+```typescript
+interface AirtableLinkDialogProps {
+  open: boolean
+  onSubmit: (link: string) => void
+  onCancel: () => void
+  influencerName: string
+  platform: string
+}
+```
+
+### Implementation
+
+```jsx
+import { AirtableLinkDialog } from '@/components/airtable-link-dialog'
+
+function ConfigureJob() {
+  const [showDialog, setShowDialog] = useState(false)
+  
+  const handleSubmit = async (airtableLink: string) => {
+    // Extract base_id from URL
+    const baseId = extractBaseId(airtableLink)
+    
+    // Save to database
+    await supabase
+      .from('scraping_jobs')
+      .update({ airtable_base_id: baseId })
+      .eq('job_id', jobId)
+    
+    setShowDialog(false)
+  }
+  
+  return (
+    <AirtableLinkDialog
+      open={showDialog}
+      onSubmit={handleSubmit}
+      onCancel={() => {}} // Non-dismissible
+      influencerName="Nike"
+      platform="Instagram"
+    />
+  )
+}
+```
+
+## Sync API Endpoint
+
+### Endpoint
+
+**URL**: `POST /api/airtable-sync/{campaign_id}`
+
+**Authentication**: Requires `base_id` in request headers
+
+**Request**:
+```bash
+curl -X POST \
+  http://localhost:5001/api/airtable-sync/a1b2c3d4-e5f6-7890 \
+  -H "Content-Type: application/json" \
+  -H "X-Base-ID: appXXXXXXXXXXXXXX"
+```
+
+**Response (Success)**:
+```json
+{
+  "success": true,
+  "campaign_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "tables_synced": 80,
+  "total_records": 14400,
+  "duration_seconds": 142
+}
+```
+
+**Response (Error)**:
+```json
+{
+  "success": false,
+  "error": "Airtable API key invalid or expired",
+  "tables_synced": 23,
+  "campaign_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+}
+```
+
+## Rate Limiting & Performance
+
+### Airtable Rate Limits
+
+Airtable enforces strict rate limits:
+
+- **5 requests/second** per base
+- **10 records per batch** for create/update operations
+- **429 Too Many Requests** if exceeded
+
+### Backend Implementation
+
+The backend handles rate limiting automatically:
+
+```python
+import time
+
+def batch_create_records(table, records, batch_size=10):
+    """Create records in batches with rate limiting"""
+    for i in range(0, len(records), batch_size):
+        batch = records[i:i+batch_size]
+        table.create(batch)
+        
+        # Respect 5 requests/second limit
+        time.sleep(0.21)  # 210ms between batches
+```
+
+### Performance Benchmarks
+
+| Profiles | VA Tables | Sync Time | Notes |
+|----------|-----------|-----------|-------|
+| 14,400 | 80 | ~3 min | Standard distribution (180 per VA) |
+| 8,000 | 80 | ~2 min | Custom distribution (100 per VA) |
+| 4,000 | 80 | ~1 min | Small campaign (50 per VA) |
+
+<Note>
+  Sync time varies based on Airtable's response time and network latency. Times shown are typical for stable connections.
+</Note>
+
+## Multi-Tenant Isolation
+
+Airtable sync operations are scoped to the active job's `base_id`:
+
+```javascript
+// Client-side API call
+const syncResult = await apiPost(`/api/airtable-sync/${campaignId}`, baseId)
+
+// Backend validates base_id matches campaign
+if (campaign.base_id !== request.headers['X-Base-ID']) {
+  return { success: false, error: 'Base ID mismatch' }
+}
+```
+
+<Warning>
+  **Security**: Never sync profiles across different clients/jobs. Always validate `base_id` matches the campaign.
+</Warning>
+
+## Error Handling
+
+### Common Errors
+
+<Tabs>
+  <Tab title="Invalid API Key">
+    **Error**: `Airtable API key invalid or expired`
+    
+    **Cause**: API key in `.env` is incorrect or revoked
+    
+    **Solution**:
+    1. Generate new API key at https://airtable.com/create/tokens
+    2. Update `AIRTABLE_API_KEY` in backend `.env`
+    3. Restart backend server
+    4. Retry sync
+  </Tab>
+  
+  <Tab title="Base Not Found">
+    **Error**: `Airtable base not found`
+    
+    **Cause**: Base ID doesn't exist or user doesn't have access
+    
+    **Solution**:
+    1. Verify base exists in Airtable workspace
+    2. Check base ID is correct in `scraping_jobs.airtable_base_id`
+    3. Ensure API key has access to the workspace
+  </Tab>
+  
+  <Tab title="Table Missing">
+    **Error**: `Table 'Table 42' not found in base`
+    
+    **Cause**: Not all 80 tables exist in the base
+    
+    **Solution**:
+    1. Create missing tables in Airtable
+    2. Ensure tables are named exactly: `Table 1`, `Table 2`, ..., `Table 80`
+    3. Retry sync
+  </Tab>
+  
+  <Tab title="Rate Limited">
+    **Error**: `429 Too Many Requests`
+    
+    **Cause**: Exceeded Airtable's 5 requests/second limit
+    
+    **Solution**:
+    - Backend should handle this automatically with retries
+    - If persistent, increase delay between batches in backend code
+    - Contact Airtable support for rate limit increase (enterprise plans)
+  </Tab>
+</Tabs>
+
+### Retry Logic
+
+If sync fails mid-process:
+
+1. **Partial Success**: Some tables synced, others failed
+   - Campaign status set to `false` (failed)
+   - Manual retry: `POST /api/airtable-sync/{campaign_id}`
+   - Backend will skip tables that already have records (idempotent)
+
+2. **Complete Failure**: No tables synced
+   - Check error message in response
+   - Fix underlying issue (API key, base ID, etc.)
+   - Retry entire sync
+
+## Monitoring Sync Status
+
+### Campaign Table Status
+
+After sync completes, check the **Campaigns** table:
+
+- **🟢 Green (success)**: All 80 tables synced successfully
+- **🔴 Red (failed)**: One or more tables failed to sync
+
+### Manual Verification
+
+1. Open Airtable base in browser
+2. Navigate to a random VA table (e.g., Table 15, Table 47)
+3. Verify:
+   - Correct number of records (e.g., 180)
+   - All fields populated (Username, Full Name, URL)
+   - Records are ordered by Position field
+
+### Backend Logs
+
+Check backend logs for detailed sync information:
+
+```bash
+# View sync logs
+tail -f /var/log/api.log | grep airtable-sync
+
+# Example output
+[2025-10-24 14:32:10] Starting Airtable sync for campaign a1b2c3d4
+[2025-10-24 14:32:12] Synced Table 1: 180 records
+[2025-10-24 14:32:14] Synced Table 2: 180 records
+...
+[2025-10-24 14:35:32] Airtable sync complete: 80/80 tables, 14400 records
+```
+
+## VA Access to Profiles
+
+### Airtable Workspace Permissions
+
+Ensure VAs have proper access:
+
+1. **Workspace Member**: Add VAs to "AIVS Scraper Workspace"
+2. **Base Permissions**: Grant "Editor" or "Commenter" access to the base
+3. **Table Assignment**: Each VA should only see their assigned table (use Airtable views/permissions)
+
+### VA Workflow
+
+<Steps>
+  <Step title="Receive Notification">
+    VAs are notified (via email/Slack) when new profiles are available in their table.
+  </Step>
+  
+  <Step title="Open Airtable Table">
+    VA navigates to their assigned table (e.g., VA 1 → Table 1, VA 15 → Table 15).
+  </Step>
+  
+  <Step title="View Profiles">
+    VA sees 180 profiles with:
+    - Username (e.g., @johndoe)
+    - Full Name (e.g., John Doe)
+    - URL (direct link to Instagram profile)
+    - Position (1-180)
+    - Status (default: Pending)
+  </Step>
+  
+  <Step title="Start Outreach">
+    VA updates Status field as they progress:
+    - **Pending** → **Contacted** → **Completed**
+  </Step>
+</Steps>
+
+### Airtable Views
+
+Create custom views for VAs:
+
+**Pending Only**:
+```
+Filter: Status = "Pending"
+Sort: Position (ascending)
+```
+
+**Completed Today**:
+```
+Filter: Status = "Completed" AND Last Modified Time is today
+Group by: Status
+```
+
+## Troubleshooting
+
+### Profiles not appearing in Airtable
+
+**Symptoms**: Campaign shows success but Airtable tables are empty
+
+**Solutions**:
+1. Verify correct base ID is configured in `scraping_jobs.airtable_base_id`
+2. Check Airtable API key has write permissions
+3. Manually query `daily_assignments` to confirm profiles exist:
+   ```sql
+   SELECT COUNT(*) FROM daily_assignments WHERE campaign_id = ?
+   ```
+4. Re-run sync: `POST /api/airtable-sync/{campaign_id}`
+
+### Partial sync (some tables missing records)
+
+**Symptoms**: Tables 1-42 have records, Tables 43-80 are empty
+
+**Cause**: Sync failed mid-process (network error, rate limit, etc.)
+
+**Solutions**:
+1. Check backend logs for error at table 42
+2. Fix underlying issue
+3. Retry sync (backend will detect existing records and skip)
+4. If retry fails, manually delete records from Tables 1-42 and run full sync
+
+### Duplicate records in Airtable
+
+**Symptoms**: Same username appears twice in a VA table
+
+**Cause**: Sync was run multiple times without clearing previous records
+
+**Solutions**:
+1. Delete all records from the base
+2. Run sync once: `POST /api/airtable-sync/{campaign_id}`
+3. Implement idempotency: Check if record exists before creating (backend enhancement)
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Pre-Create Tables" icon="table">
+    Create all 80 tables in your Airtable base before the first sync to avoid errors.
+  </Card>
+  
+  <Card title="Monitor API Usage" icon="chart-bar">
+    Check Airtable API usage in your workspace settings to avoid hitting monthly limits.
+  </Card>
+  
+  <Card title="Backup Bases" icon="floppy-disk">
+    Export Airtable bases weekly as CSV backups in case of data loss.
+  </Card>
+  
+  <Card title="Test with Small Campaigns" icon="vial">
+    Test sync with 10 profiles per VA before running full 180-profile campaigns.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Campaign Management" href="/features/scraping-campaigns" icon="radar">
+    Learn how to create and manage scraping campaigns
+  </Card>
+  
+  <Card title="API Reference" href="/api/campaigns/airtable-sync" icon="code">
+    Explore detailed API documentation
+  </Card>
+</CardGroup>

@@ -1,0 +1,499 @@
+---
+title: 'TikTok'
+description: 'TikTok platform integration and scraping capabilities'
+icon: 'tiktok'
+---
+
+## Overview
+
+TikTok is the world's leading short-form video platform with over 1 billion active users. The Click Creators Scraper Client supports TikTok for accessing viral content creators and their engaged audiences.
+
+<Info>
+TikTok integration is currently active and available for creating scraping jobs.
+</Info>
+
+## Platform Status
+
+<CardGroup cols={2}>
+  <Card title="Current Status" icon="check-circle">
+    **Active**
+    
+    TikTok platform is enabled for job creation and configuration.
+  </Card>
+  
+  <Card title="Platform Type" icon="tiktok">
+    **Video Platform**
+    
+    Short-form video content with algorithmic discovery.
+  </Card>
+</CardGroup>
+
+## Platform Configuration
+
+### Platform Identifier
+
+```typescript
+platform: 'tiktok'
+```
+
+### Display Configuration
+
+```typescript
+tiktok: {
+  label: 'TikTok',
+  icon: '🎵',
+  color: '#000000'
+}
+```
+
+The TikTok platform uses a black color scheme and music note emoji for visual identification throughout the UI.
+
+## Scraping Capabilities
+
+### What Can Be Scraped
+
+<CardGroup cols={2}>
+  <Card title="Follower Lists" icon="users">
+    Extract follower data from TikTok creator accounts
+  </Card>
+  
+  <Card title="Creator Profiles" icon="user">
+    Username, display name, bio, follower/following counts
+  </Card>
+  
+  <Card title="Engagement Metrics" icon="heart">
+    Likes, views, comments, shares (content-level)
+  </Card>
+  
+  <Card title="Content Discovery" icon="video">
+    Access to viral content and trending creators
+  </Card>
+</CardGroup>
+
+### Data Fields Extracted
+
+TikTok scraping collects comprehensive creator profile data:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | Text | TikTok user ID |
+| `username` | Text | TikTok handle (without @) |
+| `full_name` | Text | Display name |
+| `follower_count` | Integer | Number of followers |
+| `following_count` | Integer | Number of accounts following |
+| `likes_count` | Integer | Total likes across all videos |
+| `video_count` | Integer | Total videos posted |
+| `is_verified` | Boolean | Verification badge status |
+| `biography` | Text | Profile bio text |
+| `detected_gender` | Text | Gender detection result |
+
+## Platform-Specific Features
+
+### TikTok Audience Characteristics
+
+<Note>
+TikTok audiences tend to be younger (Gen Z and Millennials) and highly engaged with short-form video content.
+</Note>
+
+**Key Demographics:**
+- **Age Range**: Primarily 16-34 years old
+- **Content Preference**: Short, entertaining, authentic videos
+- **Engagement**: High interaction rates compared to other platforms
+- **Discovery**: Algorithm-driven content discovery
+
+### TikTok-Specific Workflow
+
+<Steps>
+  <Step title="Create TikTok Job">
+    Navigate to Configure page and select "TikTok" as platform
+    
+    ```typescript
+    {
+      influencer_name: "Fitness Challenge Campaign",
+      platform: "tiktok",
+      num_vas: 60,
+      airtable_base_id: "appTikTokCampaign"
+    }
+    ```
+  </Step>
+  
+  <Step title="Identify Target Creators">
+    Find TikTok creators in your niche:
+    - Fitness challenges
+    - Dance trends
+    - Educational content
+    - Product reviews
+  </Step>
+  
+  <Step title="Extract Follower Data">
+    Scrape engaged followers from target creators
+    - Young, active users
+    - Trend-conscious audience
+    - High engagement potential
+  </Step>
+  
+  <Step title="Campaign Distribution">
+    Distribute to VAs with TikTok-specific messaging strategy
+  </Step>
+</Steps>
+
+## Configuration Options
+
+### Creating a TikTok Scraping Job
+
+```typescript
+interface TikTokJobConfig {
+  influencer_name: string;   // Creator or campaign name
+  platform: 'tiktok';        // Platform identifier
+  airtable_base_id: string;  // Airtable workspace URL
+  num_vas: number;           // Number of VAs
+  status: 'active';          // Initial status
+}
+```
+
+### Job Configuration Details
+
+<CardGroup cols={1}>
+  <Card title="TikTok Job Setup" icon="clipboard-list">
+    - **Influencer Name**: Target TikTok creator or campaign identifier
+    - **Platform**: Select "TikTok" from dropdown
+    - **Number of VAs**: Adjust based on campaign size (typically 40-80)
+    - **Airtable Base**: TikTok-specific workspace for campaign management
+  </Card>
+</CardGroup>
+
+## Use Cases
+
+### Ideal Scenarios for TikTok
+
+<Tabs>
+  <Tab title="Viral Marketing">
+    **Best For:**
+    - Product launches targeting Gen Z
+    - Trend-based campaigns
+    - Challenge and hashtag campaigns
+    - Influencer collaboration outreach
+    
+    **Audience Type:**
+    - Trend followers
+    - Early adopters
+    - Video content consumers
+    - Mobile-first users
+  </Tab>
+  
+  <Tab title="Brand Awareness">
+    **Best For:**
+    - New brand introduction
+    - Youth market penetration
+    - Entertainment industry promotion
+    - Fashion and beauty campaigns
+    
+    **Benefits:**
+    - Massive reach potential
+    - Algorithm-driven virality
+    - Authentic creator partnerships
+    - Cost-effective audience building
+  </Tab>
+  
+  <Tab title="Community Building">
+    **Best For:**
+    - Niche communities (fitness, cooking, education)
+    - Creator economy tools
+    - Educational platforms
+    - Service promotions
+    
+    **Advantages:**
+    - Highly engaged micro-communities
+    - Creator-driven trust
+    - Organic discovery through For You Page
+  </Tab>
+</Tabs>
+
+## Platform Advantages
+
+### Why Choose TikTok
+
+<CardGroup cols={2}>
+  <Card title="Algorithmic Discovery" icon="sparkles">
+    TikTok's For You Page algorithm can expose content to massive audiences without existing followers
+  </Card>
+  
+  <Card title="High Engagement" icon="fire">
+    Average engagement rates significantly higher than Instagram or Facebook
+  </Card>
+  
+  <Card title="Young Demographics" icon="users">
+    Access to Gen Z and young Millennial audiences that are hard to reach elsewhere
+  </Card>
+  
+  <Card title="Trend Creation" icon="chart-line">
+    Platform known for starting viral trends that spread to other social networks
+  </Card>
+</CardGroup>
+
+## Limitations and Considerations
+
+### Technical Challenges
+
+<Warning>
+TikTok has robust anti-scraping measures. Respect rate limits and implement proper delays between requests.
+</Warning>
+
+### Platform-Specific Limitations
+
+<CardGroup cols={2}>
+  <Card title="API Restrictions" icon="lock">
+    TikTok's official API has limited endpoints compared to Instagram
+  </Card>
+  
+  <Card title="Account Privacy" icon="shield">
+    Many TikTok accounts are private, limiting follower data access
+  </Card>
+  
+  <Card title="Rate Limiting" icon="gauge">
+    Aggressive rate limiting requires careful scraping frequency management
+  </Card>
+  
+  <Card title="Regional Variations" icon="globe">
+    Content and users vary significantly by geographic region
+  </Card>
+</CardGroup>
+
+### Best Practices
+
+<Steps>
+  <Step title="Target Niche Creators">
+    Focus on creators with 50k-500k followers for best engagement balance
+  </Step>
+  
+  <Step title="Geographic Considerations">
+    Be aware that TikTok audiences cluster by region - target accordingly
+  </Step>
+  
+  <Step title="Content Alignment">
+    Ensure your outreach aligns with TikTok's casual, authentic culture
+  </Step>
+  
+  <Step title="Monitor Trends">
+    TikTok moves fast - stay updated on trending sounds, hashtags, and challenges
+  </Step>
+  
+  <Step title="Respect Rate Limits">
+    Implement longer delays between scraping sessions to avoid blocks
+  </Step>
+</Steps>
+
+## Example Campaign
+
+### Fashion Brand Launch on TikTok
+
+**Scenario:** Launch a streetwear brand targeting Gen Z fashion enthusiasts
+
+<Steps>
+  <Step title="Identify Fashion Creators">
+    Find active TikTok fashion influencers:
+    - @streetwear_daily (1.2M followers)
+    - @fashion_inspo (800K followers)
+    - @style_tips (600K followers)
+  </Step>
+  
+  <Step title="Create TikTok Job">
+    ```typescript
+    {
+      influencer_name: "Streetwear Launch Q1",
+      platform: "tiktok",
+      num_vas: 50,
+      airtable_base_id: "appFashionTikTok"
+    }
+    ```
+  </Step>
+  
+  <Step title="Extract Engaged Audience">
+    - Target followers who engage with fashion content
+    - Focus on 18-25 age demographic
+    - Filter for users interested in streetwear trends
+  </Step>
+  
+  <Step title="Personalized Outreach">
+    - 50 VAs handling 150 profiles each (7,500 total)
+    - DM strategy aligned with TikTok's casual tone
+    - Offer exclusive early access or discount codes
+  </Step>
+</Steps>
+
+**Expected Results:**
+- 100,000+ fashion-focused profiles scraped
+- 7,500 highly targeted outreach contacts
+- 15-20% response rate (higher than Instagram due to younger, more active audience)
+- Viral potential through user-generated content
+
+## API Integration
+
+### TikTok-Specific Endpoints
+
+TikTok uses the same API structure with platform-specific parameters:
+
+```bash
+POST /api/scrape-followers
+{
+  "accounts": ["tiktok_creator"],
+  "platform": "tiktok",
+  "targetGender": "male"
+}
+```
+
+**Response includes TikTok-specific metrics:**
+```json
+{
+  "success": true,
+  "data": {
+    "totalScraped": 2000,
+    "totalFiltered": 900,
+    "avgEngagementRate": 8.5,
+    "platformMetrics": {
+      "avgVideoCount": 45,
+      "avgLikes": 12500
+    }
+  }
+}
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="TikTok Scraping Blocked">
+    **Possible Causes:**
+    - Rate limits exceeded
+    - IP address temporarily blocked
+    - Account flagged for suspicious activity
+    
+    **Solutions:**
+    - Wait 24-48 hours before retrying
+    - Reduce scraping frequency
+    - Use residential proxy services
+    - Rotate scraping accounts
+  </Accordion>
+  
+  <Accordion title="Follower Data Incomplete">
+    **Possible Causes:**
+    - TikTok API limitations
+    - Private accounts blocking data access
+    - Recent platform changes
+    
+    **Solutions:**
+    - Focus on public creator accounts
+    - Accept that TikTok data may be less detailed than Instagram
+    - Prioritize engagement metrics over follower lists
+  </Accordion>
+  
+  <Accordion title="Low Gender Detection Accuracy">
+    **Possible Causes:**
+    - TikTok usernames often don't include real names
+    - Display names may be nicknames or brand names
+    - International users with non-Western names
+    
+    **Solutions:**
+    - Expect lower accuracy (~70%) compared to Instagram
+    - Use bio text analysis as supplementary signal
+    - Consider manual review of high-value segments
+  </Accordion>
+  
+  <Accordion title="Regional Content Mismatch">
+    **Possible Causes:**
+    - TikTok's algorithm shows different content by region
+    - Creator audiences concentrated in specific countries
+    
+    **Solutions:**
+    - Verify creator's primary audience geography
+    - Use location-specific hashtags for targeting
+    - Consider using VPN to access region-specific content
+  </Accordion>
+</AccordionGroup>
+
+## Comparison with Other Platforms
+
+### TikTok vs Instagram vs Threads
+
+| Feature | TikTok | Instagram | Threads |
+|---------|--------|-----------|----------|
+| **Primary Content** | Short videos | Photos/Videos/Stories | Text conversations |
+| **User Base** | 1B+ (younger) | 2B+ (broad) | Growing |
+| **Engagement Rate** | Very High (8-15%) | Medium (3-6%) | Medium-High |
+| **Discovery** | Algorithm-driven | Hashtag/Following | Conversation-driven |
+| **Scraping Difficulty** | High | Medium | Medium |
+| **Best For** | Viral campaigns | Broad reach | Thought leadership |
+| **Age Demographic** | 16-30 primary | 18-45 broad | 20-40 early adopters |
+
+### When to Use TikTok
+
+<CardGroup cols={2}>
+  <Card title="Choose TikTok When..." icon="tiktok">
+    - Targeting Gen Z audience (16-25)
+    - Video content is central to brand
+    - Seeking viral potential
+    - Budget-conscious campaigns
+    - Trend-based marketing
+  </Card>
+  
+  <Card title="Choose Instagram When..." icon="instagram">
+    - Broader age range needed
+    - Visual storytelling emphasis
+    - Established influencer partnerships
+    - E-commerce integration required
+  </Card>
+</CardGroup>
+
+## Advanced Strategies
+
+### Multi-Creator Network Mapping
+
+TikTok creators often collaborate and share audiences:
+
+<Steps>
+  <Step title="Identify Creator Clusters">
+    Find groups of creators who frequently collaborate or duet
+  </Step>
+  
+  <Step title="Map Shared Audiences">
+    Extract followers from entire creator network for comprehensive coverage
+  </Step>
+  
+  <Step title="Trend Participation">
+    Target users who engage with specific trending hashtags or challenges
+  </Step>
+</Steps>
+
+### Hashtag-Based Targeting
+
+Leverage TikTok's hashtag culture:
+
+```typescript
+// Example: Target users engaging with fitness hashtags
+const hashtags = [
+  '#fitnessjourney',
+  '#gymmotivation',
+  '#workoutchallenge'
+];
+
+// Scrape users who created content or engaged with these hashtags
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Create TikTok Job" icon="plus" href="/quickstart">
+    Set up your first TikTok scraping campaign
+  </Card>
+  
+  <Card title="Platform Selection Guide" icon="compass" href="/guides/multi-platform">
+    Learn which platform best fits your goals
+  </Card>
+  
+  <Card title="Best Practices" icon="star" href="/guides/creating-jobs">
+    TikTok-specific strategies for maximum results
+  </Card>
+  
+  <Card title="Multi-Platform Campaigns" icon="layer-group" href="/guides/multi-platform">
+    Combine TikTok with Instagram for broader reach
+  </Card>
+</CardGroup>

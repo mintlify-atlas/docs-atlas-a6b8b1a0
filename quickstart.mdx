@@ -1,80 +1,219 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Get up and running with Click Creators Scraper Client in 5 minutes"
 ---
 
-## Get started in three steps
+<Note>
+  This guide will get you from zero to running your first scraping campaign in under 5 minutes.
+</Note>
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
+Before you begin, ensure you have the following:
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Node.js 18+" icon="node-js">
+    Download from [nodejs.org](https://nodejs.org)
+  </Card>
+  <Card title="Supabase Account" icon="database">
+    Sign up at [supabase.com](https://supabase.com)
+  </Card>
+  <Card title="Apify Account" icon="robot">
+    Create account at [apify.com](https://apify.com)
+  </Card>
+  <Card title="Airtable Account" icon="table">
+    Sign up at [airtable.com](https://airtable.com)
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+<Warning>
+  You'll also need Python 3.9+ installed for the backend API. Check your version with `python --version`.
+</Warning>
+
+## Installation
+
+<Steps>
+  <Step title="Navigate to client directory">
+    ```bash
+    cd client
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    ```bash
+    npm install
+    ```
+    
+    This will install all required packages including Next.js, Supabase client, and UI components.
+  </Step>
+
+  <Step title="Set up environment variables">
+    Copy the example environment file and configure your credentials:
+    
+    ```bash
+    cp .env.example .env.local
+    ```
+    
+    Edit `.env.local` with your actual credentials:
+    
+    ```bash .env.local
+    # App URL
+    NEXT_PUBLIC_APP_URL=http://localhost:3000
+    
+    # Backend API URL
+    NEXT_PUBLIC_API_URL=http://localhost:5001
+    
+    # Supabase Configuration
+    NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+    
+    # Authentication Credentials
+    NEXT_PUBLIC_USERNAME=your-username
+    NEXT_PUBLIC_PASSWORD=your-password
+    NEXT_PUBLIC_OTP=123456
+    
+    # Campaign Configuration
+    NEXT_PUBLIC_DAILY_SELECTION_TARGET=14400
+    
+    # Source Profiles Management
+    NEXT_PUBLIC_DELETE_PASSWORD=delete123
+    ```
+    
+    <Note>
+      Get your Supabase URL and anon key from your [Supabase project dashboard](https://app.supabase.com).
+    </Note>
+  </Step>
+
+  <Step title="Start the development server">
+    ```bash
+    npm run dev
+    ```
+    
+    The application will start on `http://localhost:3000`.
+  </Step>
+</Steps>
+
+## First Login
+
+<Steps>
+  <Step title="Navigate to login page">
+    Open your browser and go to:
+    ```
+    http://localhost:3000/callum
+    ```
+  </Step>
+
+  <Step title="Enter credentials">
+    Use the credentials you configured in your `.env.local` file:
+    
+    - **Username**: Value from `NEXT_PUBLIC_USERNAME`
+    - **Password**: Value from `NEXT_PUBLIC_PASSWORD`
+    - **OTP**: Value from `NEXT_PUBLIC_OTP`
+    
+    <Note>
+      The OTP is a static value from your environment variables, not a time-based code.
+    </Note>
+  </Step>
+
+  <Step title="Access the dashboard">
+    After successful login, you'll be redirected to the main dashboard at `/callum-dashboard`.
+  </Step>
+</Steps>
+
+## Run Your First Scraping Job
+
+<Steps>
+  <Step title="Add source profiles">
+    In the **Dependencies Card**, click **Edit Source Profiles**:
+    
+    1. Enter an Instagram username or URL (e.g., `@nike` or `https://instagram.com/nike`)
+    2. Press Enter or click the **+** button
+    3. The profile will be saved to your Supabase `source_profiles` table
+    
+    <Note>
+      Source profiles are the Instagram accounts you want to scrape followers from. Add multiple accounts for better results.
+    </Note>
+  </Step>
+
+  <Step title="Start scraping">
+    Click the **Find Accounts** button to begin scraping:
+    
+    - **Scraping Phase (10-50%)**: Extracts followers from source accounts using Apify
+    - **Ingesting Phase (60-80%)**: Saves profiles to database with gender detection
+    - **Complete (100%)**: Shows success message
+    
+    <Warning>
+      Scraping can take 5-15 minutes depending on the number of followers. The progress bar will update automatically.
+    </Warning>
+  </Step>
+
+  <Step title="Create a campaign">
+    Once scraping is complete, navigate to the **Payments Table** and click **Assign to VAs**:
+    
+    This will:
+    1. Create a new campaign (0-33%)
+    2. Select 14,400 unused profiles from your database
+    3. Distribute profiles to 80 VA tables (33-66%)
+    4. Sync to Airtable (66-100%)
+    
+    Each VA receives 180 profiles per day.
+  </Step>
+
+  <Step title="Monitor progress">
+    Track your campaign in the **Campaigns Table**:
+    
+    - 🟢 **Green (Success)**: Campaign completed successfully
+    - 🔴 **Red (Failed)**: Campaign encountered an error
+    - ⚪ **Grey (Pending)**: Campaign is still processing
+    
+    <Note>
+      You can view the **Username Status Card** to see how many unused profiles remain in your pool.
+    </Note>
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configure Multi-Platform Jobs" icon="gear" href="/guides/creating-jobs">
+    Set up scraping jobs for Instagram, TikTok, X, and Threads
+  </Card>
+  <Card title="Understand the Database" icon="database" href="/database/overview">
+    Learn about the table structure and relationships
+  </Card>
+  <Card title="API Integration" icon="code" href="/api/overview">
+    Explore backend endpoints and automation options
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/quickstart">
+    Common issues and solutions
+  </Card>
+</CardGroup>
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Scraping returns no results">
+    **Solution:**
+    - Verify your Apify API key is valid in the backend `.env` file
+    - Ensure source Instagram accounts are public
+    - Check that your Apify actor has sufficient run quota
+  </Accordion>
+
+  <Accordion title="Cannot connect to Supabase">
+    **Solution:**
+    - Double-check your `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+    - Ensure your Supabase project is active (not paused)
+    - Verify Row Level Security policies allow anonymous access
+  </Accordion>
+
+  <Accordion title="Login credentials not working">
+    **Solution:**
+    - Verify credentials in `.env.local` match exactly
+    - Clear browser cache and cookies
+    - Restart the development server with `npm run dev`
+  </Accordion>
+</AccordionGroup>
+
+<Card title="Need more help?" icon="life-ring" href="/installation">
+  Check the detailed installation guide for advanced configuration options
+</Card>

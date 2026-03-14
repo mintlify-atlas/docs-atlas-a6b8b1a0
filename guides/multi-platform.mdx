@@ -1,0 +1,741 @@
+---
+title: 'Multi-Platform Scraping'
+description: 'Master scraping strategies across Instagram, TikTok, Threads, and X'
+icon: 'grid-2'
+---
+
+## Overview
+
+The Click Creators Scraper Client supports simultaneous scraping campaigns across four major social media platforms: Instagram, TikTok, Threads, and X (formerly Twitter). Each platform operates independently with isolated data and dedicated workflows.
+
+<Note>
+  Multi-platform scraping allows you to:
+  - Track the same influencer across different platforms
+  - Compare audience engagement across social networks
+  - Maximize reach by targeting followers on multiple channels
+  - Maintain separate campaigns with isolated data per platform
+</Note>
+
+## Platform Overview
+
+<CardGroup cols={2}>
+  <Card title="Instagram" icon="instagram">
+    **Platform Code:** `instagram`
+    
+    **Best For:**
+    - Visual content creators
+    - Lifestyle influencers
+    - Brand partnerships
+    - High engagement rates
+    
+    **Features:**
+    - Follower extraction
+    - Gender filtering
+    - Profile analysis
+    - Story engagement tracking
+  </Card>
+  
+  <Card title="TikTok" icon="tiktok">
+    **Platform Code:** `tiktok`
+    
+    **Best For:**
+    - Viral content creators
+    - Short-form video audiences
+    - Youth demographics
+    - Trend-based engagement
+    
+    **Features:**
+    - Follower scraping
+    - Video interaction data
+    - Hashtag analysis
+    - For You Page metrics
+  </Card>
+  
+  <Card title="Threads" icon="threads">
+    **Platform Code:** `threads`
+    
+    **Best For:**
+    - Text-based content
+    - Twitter alternative audience
+    - Meta ecosystem integration
+    - Real-time conversations
+    
+    **Features:**
+    - Thread follower extraction
+    - Reply interaction tracking
+    - Cross-posting from Instagram
+    - Growing platform opportunity
+  </Card>
+  
+  <Card title="X (Twitter)" icon="x-twitter">
+    **Platform Code:** `x`
+    
+    **Best For:**
+    - News and commentary
+    - Thought leaders
+    - Real-time engagement
+    - Professional networking
+    
+    **Features:**
+    - Follower extraction
+    - Tweet engagement analysis
+    - Retweet tracking
+    - Community management
+  </Card>
+</CardGroup>
+
+## Multi-Platform Architecture
+
+### Data Isolation
+
+Each platform job maintains complete data isolation:
+
+```typescript
+// Platform-specific job structure
+interface ScrapingJob {
+  job_id: string           // Unique per job
+  platform: Platform       // 'instagram' | 'tiktok' | 'threads' | 'x'
+  base_id: string          // Airtable base for isolation
+  influencer_name: string  // Same influencer, different platforms
+}
+```
+
+**Example: Same Influencer, Multiple Platforms**
+
+```typescript
+// Andrew Tate across platforms
+{
+  job_id: 'uuid-1',
+  platform: 'instagram',
+  influencer_name: 'Andrew Tate',
+  base_id: 'appInstagramBase123'
+}
+
+{
+  job_id: 'uuid-2', 
+  platform: 'tiktok',
+  influencer_name: 'Andrew Tate',
+  base_id: 'appTikTokBase456'
+}
+
+{
+  job_id: 'uuid-3',
+  platform: 'threads',
+  influencer_name: 'Andrew Tate',
+  base_id: 'appThreadsBase789'
+}
+```
+
+<Warning>
+  Each platform requires its own Airtable base. Never share bases across platforms, even for the same influencer.
+</Warning>
+
+### Platform-Specific Routes
+
+The application organizes jobs by platform:
+
+| Route | Platform | Purpose |
+|-------|----------|----------|
+| `/instagram-jobs` | Instagram | View and manage Instagram campaigns |
+| `/tiktok-jobs` | TikTok | View and manage TikTok campaigns |
+| `/threads-jobs` | Threads | View and manage Threads campaigns |
+| `/x-jobs` | X (Twitter) | View and manage X campaigns |
+| `/configure` | All | Create new jobs for any platform |
+
+## Creating Multi-Platform Jobs
+
+### Strategy 1: Same Influencer, Multiple Platforms
+
+<Steps>
+  <Step title="Create Instagram Job">
+    Navigate to `/configure` and create the first job:
+    
+    ```
+    Influencer Name: Andrew Tate
+    Platform: Instagram
+    Number of VAs: 80
+    Airtable Base: "Andrew Tate's Instagram Campaign"
+    ```
+  </Step>
+
+  <Step title="Create TikTok Job">
+    Return to `/configure` and create the second job:
+    
+    ```
+    Influencer Name: Andrew Tate
+    Platform: TikTok  
+    Number of VAs: 60
+    Airtable Base: "Andrew Tate's TikTok Campaign"
+    ```
+    
+    <Note>
+      Notice the different VA count. Adjust based on platform-specific follower volume.
+    </Note>
+  </Step>
+
+  <Step title="Create Threads Job">
+    Create the third job:
+    
+    ```
+    Influencer Name: Andrew Tate
+    Platform: Threads
+    Number of VAs: 40
+    Airtable Base: "Andrew Tate's Threads Campaign"
+    ```
+  </Step>
+
+  <Step title="Create X Job">
+    Create the final job:
+    
+    ```
+    Influencer Name: Andrew Tate
+    Platform: X
+    Number of VAs: 80
+    Airtable Base: "Andrew Tate's X Campaign"
+    ```
+  </Step>
+</Steps>
+
+**Result:** Four independent campaigns for the same influencer, each with:
+- Separate profile pools
+- Independent VA assignments
+- Isolated statistics
+- Platform-specific Airtable bases
+
+### Strategy 2: Different Influencers Across Platforms
+
+<Steps>
+  <Step title="Diversify by Niche">
+    Create jobs for different influencers on their strongest platforms:
+    
+    ```
+    // Fitness niche - Instagram focused
+    Job 1: David Goggins - Instagram
+    Job 2: Jeff Nippard - Instagram
+    
+    // Comedy niche - TikTok focused  
+    Job 3: Khaby Lame - TikTok
+    Job 4: Zach King - TikTok
+    
+    // News/Commentary - X focused
+    Job 5: Andrew Tate - X
+    Job 6: Jordan Peterson - X
+    ```
+  </Step>
+
+  <Step title="Optimize Resource Allocation">
+    Allocate VAs based on platform engagement:
+    
+    | Platform | Avg Engagement | Recommended VAs |
+    |----------|----------------|------------------|
+    | Instagram | High | 60-80 |
+    | TikTok | Very High | 80-100 |
+    | Threads | Medium | 40-60 |
+    | X | Medium | 60-80 |
+  </Step>
+</Steps>
+
+## Platform-Specific Workflows
+
+### Instagram Workflow
+
+<Tabs>
+  <Tab title="Setup">
+    **1. Create Job**
+    ```
+    Platform: Instagram
+    Airtable Base: [Name]'s Instagram Campaign
+    VAs: 80 (standard)
+    ```
+    
+    **2. Add Source Accounts**
+    - Navigate to Instagram job dashboard
+    - Add Instagram profiles to scrape from
+    - Use verified accounts for best results
+  </Tab>
+  
+  <Tab title="Scraping">
+    **1. Initiate Scrape**
+    - Click "Find Accounts"
+    - Apify scrapes follower lists
+    - Gender filtering applied (male profiles)
+    
+    **2. Review Results**
+    - Check profile count
+    - Verify quality in Payments Table
+    - Monitor Username Status Card
+  </Tab>
+  
+  <Tab title="Campaign">
+    **1. Create Campaign**
+    - Ensure 14,400+ available profiles
+    - Click "Assign to VAs"
+    - Monitor progress (Creating → Distributing → Syncing)
+    
+    **2. Airtable Access**
+    - VAs access via Instagram Airtable base
+    - 180 profiles per VA
+    - Track engagement in Campaigns Table
+  </Tab>
+</Tabs>
+
+### TikTok Workflow
+
+<Tabs>
+  <Tab title="Setup">
+    **1. Create Job**
+    ```
+    Platform: TikTok
+    Airtable Base: [Name]'s TikTok Campaign  
+    VAs: 80-100 (higher engagement)
+    ```
+    
+    **2. TikTok-Specific Considerations**
+    - Younger demographic
+    - Higher daily engagement volume
+    - More frequent campaign creation
+  </Tab>
+  
+  <Tab title="Scraping">
+    **1. Source Selection**
+    - Add viral TikTok creators
+    - Focus on For You Page performers
+    - Target accounts with 1M+ followers
+    
+    **2. Profile Volume**
+    - TikTok profiles are abundant
+    - Expect higher scrape volumes
+    - May need 20,000+ profile pool
+  </Tab>
+  
+  <Tab title="Campaign">
+    **1. Higher Frequency**
+    - Consider 2 campaigns per week
+    - Shorter 3-day lifecycle
+    - Aggressive engagement strategy
+    
+    **2. Performance Tracking**
+    - Monitor follow-back rates
+    - Track video views from followers
+    - Measure engagement velocity
+  </Tab>
+</Tabs>
+
+### Threads Workflow
+
+<Tabs>
+  <Tab title="Setup">
+    **1. Create Job**
+    ```
+    Platform: Threads
+    Airtable Base: [Name]'s Threads Campaign
+    VAs: 40-60 (newer platform)
+    ```
+    
+    **2. Threads Strategy**
+    - Leverage Instagram crossover
+    - Text-based engagement
+    - Real-time conversation focus
+  </Tab>
+  
+  <Tab title="Scraping">
+    **1. Source Accounts**
+    - Add Threads-native creators
+    - Include Instagram crossposters
+    - Target early adopters
+    
+    **2. Profile Characteristics**
+    - Smaller follower counts (new platform)
+    - Higher engagement ratios
+    - Quality over quantity
+  </Tab>
+  
+  <Tab title="Campaign">
+    **1. Engagement Type**
+    - Reply to threads
+    - Like and reshare content
+    - Build conversation threads
+    
+    **2. Growth Opportunity**
+    - Less competition (new platform)
+    - Higher visibility potential
+    - First-mover advantage
+  </Tab>
+</Tabs>
+
+### X (Twitter) Workflow
+
+<Tabs>
+  <Tab title="Setup">
+    **1. Create Job**
+    ```
+    Platform: X
+    Airtable Base: [Name]'s X Campaign
+    VAs: 60-80 (professional network)
+    ```
+    
+    **2. X-Specific Strategy**
+    - Thought leadership focus
+    - News and commentary
+    - Professional networking
+  </Tab>
+  
+  <Tab title="Scraping">
+    **1. Source Selection**
+    - Target verified accounts
+    - Focus on active tweeters
+    - Select niche-relevant accounts
+    
+    **2. Follower Quality**
+    - Prioritize engaged followers
+    - Filter for active accounts
+    - Check tweet frequency
+  </Tab>
+  
+  <Tab title="Campaign">
+    **1. Engagement Style**
+    - Quote tweets
+    - Thoughtful replies
+    - Retweet with commentary
+    
+    **2. Timing Matters**
+    - Peak hours: 9 AM - 12 PM EST
+    - News cycle awareness
+    - Real-time event engagement
+  </Tab>
+</Tabs>
+
+## Cross-Platform Analytics
+
+### Comparing Platform Performance
+
+<Accordion title="Follower Growth Rate">
+  Track growth across platforms:
+  
+  ```typescript
+  // Query statistics per platform
+  const instagramStats = await getJobStatistics(instagramJobId)
+  const tiktokStats = await getJobStatistics(tiktokJobId)
+  const threadsStats = await getJobStatistics(threadsJobId)
+  const xStats = await getJobStatistics(xJobId)
+  
+  // Compare
+  console.log('Instagram Available:', instagramStats.availableUsernames)
+  console.log('TikTok Available:', tiktokStats.availableUsernames)
+  console.log('Threads Available:', threadsStats.availableUsernames)  
+  console.log('X Available:', xStats.availableUsernames)
+  ```
+</Accordion>
+
+<Accordion title="Campaign Success Rate">
+  Monitor campaign completion across platforms:
+  
+  ```sql
+  -- Success rate by platform
+  SELECT 
+    sj.platform,
+    COUNT(c.campaign_id) as total_campaigns,
+    SUM(CASE WHEN c.status = true THEN 1 ELSE 0 END) as successful,
+    (SUM(CASE WHEN c.status = true THEN 1 ELSE 0 END)::float / 
+     COUNT(c.campaign_id) * 100) as success_rate
+  FROM campaigns c
+  JOIN scraping_jobs sj ON c.base_id = sj.base_id
+  GROUP BY sj.platform
+  ```
+</Accordion>
+
+<Accordion title="VA Efficiency">
+  Compare VA performance per platform:
+  
+  | Metric | Instagram | TikTok | Threads | X |
+  |--------|-----------|--------|---------|---|
+  | Profiles/Day | 180 | 200 | 150 | 180 |
+  | Follow Rate | 75% | 85% | 60% | 70% |
+  | Engagement Time | 8 hrs | 6 hrs | 10 hrs | 8 hrs |
+  | Cost/Profile | $0.10 | $0.08 | $0.12 | $0.10 |
+</Accordion>
+
+## Managing Multiple Platforms
+
+### Dashboard Organization
+
+<Steps>
+  <Step title="Use Platform Pages">
+    Navigate between platform-specific pages:
+    
+    ```
+    /instagram-jobs - All Instagram campaigns
+    /tiktok-jobs - All TikTok campaigns
+    /threads-jobs - All Threads campaigns  
+    /x-jobs - All X campaigns
+    ```
+  </Step>
+
+  <Step title="Leverage Sidebar Recents">
+    Your 5 most recent jobs appear in the sidebar, regardless of platform:
+    
+    - Quick access to active campaigns
+    - Platform icons for easy identification
+    - Click to navigate to job dashboard
+  </Step>
+
+  <Step title="Bookmark Key Pages">
+    Create browser bookmarks for frequent platforms:
+    
+    ```
+    Primary Platform: /instagram-jobs
+    Secondary Platform: /tiktok-jobs
+    Configuration: /configure
+    ```
+  </Step>
+</Steps>
+
+### Resource Allocation
+
+<Accordion title="VA Distribution Across Platforms">
+  If you have 200 total VAs, allocate strategically:
+  
+  ```
+  Instagram: 80 VAs (40%) - High engagement
+  TikTok: 60 VAs (30%) - Viral potential
+  X: 40 VAs (20%) - Professional network
+  Threads: 20 VAs (10%) - Experimental
+  ```
+  
+  Adjust based on:
+  - Platform ROI
+  - Follower quality
+  - Engagement rates
+  - Campaign goals
+</Accordion>
+
+<Accordion title="Airtable Workspace Organization">
+  Organize your Airtable bases by platform:
+  
+  ```
+  📁 AIVS Scraper Workspace
+  ├── 📷 Instagram Campaigns
+  │   ├── Andrew Tate's Instagram Campaign
+  │   ├── David Goggins's Instagram Campaign
+  │   └── MrBeast's Instagram Campaign
+  ├── 🎵 TikTok Campaigns
+  │   ├── Andrew Tate's TikTok Campaign
+  │   └── Khaby Lame's TikTok Campaign
+  ├── 🧵 Threads Campaigns
+  │   └── Andrew Tate's Threads Campaign
+  └── 𝕏 X Campaigns
+      ├── Andrew Tate's X Campaign
+      └── Jordan Peterson's X Campaign
+  ```
+</Accordion>
+
+<Accordion title="Campaign Scheduling">
+  Stagger campaigns across platforms:
+  
+  ```
+  Monday: Instagram Campaign
+  Tuesday: TikTok Campaign
+  Wednesday: X Campaign
+  Thursday: Threads Campaign
+  Friday: Instagram Campaign (second weekly)
+  ```
+  
+  Benefits:
+  - Spread VA workload
+  - Avoid resource conflicts
+  - Continuous engagement presence
+</Accordion>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Platform-Specific Naming">
+    Always include platform in job names:
+    
+    ✅ **Good:**
+    - "Andrew Tate's Instagram Campaign"
+    - "MrBeast's TikTok Campaign"
+    
+    ❌ **Bad:**
+    - "Andrew Tate Campaign" (ambiguous)
+    - "Campaign 1" (unclear)
+  </Accordion>
+  
+  <Accordion title="Separate Airtable Bases">
+    Never share Airtable bases across platforms:
+    
+    ✅ **Correct:**
+    ```
+    Instagram Job → appInstagram123
+    TikTok Job → appTikTok456
+    ```
+    
+    ❌ **Incorrect:**
+    ```
+    Instagram Job → appShared789
+    TikTok Job → appShared789  // Don't do this!
+    ```
+  </Accordion>
+  
+  <Accordion title="Platform-Appropriate VA Counts">
+    Adjust VA allocation based on platform characteristics:
+    
+    | Platform | Volume | Engagement | Recommended VAs |
+    |----------|--------|------------|------------------|
+    | Instagram | High | High | 60-80 |
+    | TikTok | Very High | Very High | 80-100 |
+    | Threads | Medium | Medium | 40-60 |
+    | X | Medium | Medium-High | 60-80 |
+  </Accordion>
+  
+  <Accordion title="Independent Campaign Lifecycles">
+    Run campaigns at different frequencies per platform:
+    
+    ```
+    Instagram: Daily (high engagement)
+    TikTok: 2-3x per week (viral nature)
+    Threads: 2x per week (growing)
+    X: Daily (real-time platform)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Advanced Multi-Platform Strategies
+
+### Cross-Platform Audience Analysis
+
+<Accordion title="Identify Overlap">
+  Find users active on multiple platforms:
+  
+  ```sql
+  -- Find usernames appearing on multiple platforms
+  SELECT 
+    gu1.username,
+    COUNT(DISTINCT sj.platform) as platform_count,
+    ARRAY_AGG(DISTINCT sj.platform) as platforms
+  FROM global_usernames gu1
+  JOIN scraping_jobs sj ON gu1.base_id = sj.base_id
+  GROUP BY gu1.username
+  HAVING COUNT(DISTINCT sj.platform) > 1
+  ```
+  
+  Use this data to:
+  - Prioritize multi-platform users
+  - Cross-promote content
+  - Identify superfans
+</Accordion>
+
+<Accordion title="Platform Migration Tracking">
+  Track users moving between platforms:
+  
+  ```typescript
+  // Identify users who joined new platform
+  const threadsUsers = await getJobUsernames(threadsJobId)
+  const instagramUsers = await getJobUsernames(instagramJobId)
+  
+  const newToThreads = threadsUsers.filter(tu => 
+    !instagramUsers.find(iu => iu.username === tu.username)
+  )
+  
+  console.log(`${newToThreads.length} users are new to Threads`)
+  ```
+</Accordion>
+
+### Unified Campaign Reporting
+
+<Accordion title="Cross-Platform Dashboard">
+  Create a unified view of all platforms:
+  
+  ```typescript
+  import { getJobsByPlatform } from '@/lib/scraping-jobs'
+  
+  const report = await Promise.all([
+    getJobsByPlatform('instagram'),
+    getJobsByPlatform('tiktok'),
+    getJobsByPlatform('threads'),
+    getJobsByPlatform('x')
+  ])
+  
+  const summary = {
+    instagram: report[0].length,
+    tiktok: report[1].length,
+    threads: report[2].length,
+    x: report[3].length,
+    total: report.flat().length
+  }
+  ```
+</Accordion>
+
+## Troubleshooting Multi-Platform Issues
+
+### Platform-Specific Errors
+
+<Accordion title="Different Scrape Volumes">
+  **Issue:** Instagram returns 10K profiles, TikTok returns 50K profiles
+  
+  **Solution:**
+  - This is normal - platforms have different scraping yields
+  - Adjust daily targets per platform:
+    ```bash
+    # Platform-specific targets (future enhancement)
+    INSTAGRAM_DAILY_TARGET=14400
+    TIKTOK_DAILY_TARGET=20000
+    ```
+</Accordion>
+
+<Accordion title="Airtable Base Confusion">
+  **Issue:** Profiles from one platform appearing in another
+  
+  **Solution:**
+  1. Verify each job has unique `base_id`
+  2. Check Airtable base URLs are different
+  3. Query database:
+     ```sql
+     SELECT platform, base_id FROM scraping_jobs
+     ```
+  4. Ensure no shared base IDs across platforms
+</Accordion>
+
+<Accordion title="VA Assignment Errors">
+  **Issue:** VAs receiving profiles from wrong platform
+  
+  **Solution:**
+  1. Check campaign `base_id` matches job `base_id`
+  2. Verify Airtable sync uses correct base
+  3. Review daily_assignments table:
+     ```sql
+     SELECT da.*, sj.platform 
+     FROM daily_assignments da
+     JOIN scraping_jobs sj ON da.base_id = sj.base_id
+     WHERE da.campaign_id = ?
+     ```
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="code" href="/api/scraping-jobs/list">
+    Explore platform-specific API endpoints
+  </Card>
+  
+  <Card title="Campaign Management" icon="calendar" href="/guides/managing-campaigns">
+    Deep dive into campaign workflows
+  </Card>
+</CardGroup>
+
+## Platform Comparison Matrix
+
+| Feature | Instagram | TikTok | Threads | X |
+|---------|-----------|--------|---------|---|
+| **Scraping Speed** | Fast | Very Fast | Medium | Fast |
+| **Profile Volume** | High | Very High | Medium | High |
+| **Engagement Rate** | High | Very High | Medium | Medium-High |
+| **VA Workload** | 180/day | 200/day | 150/day | 180/day |
+| **Campaign Frequency** | Daily | 2-3x/week | 2x/week | Daily |
+| **Best For** | Visual Content | Viral Content | Text Conversations | Real-time Commentary |
+| **Maturity** | Established | Established | Growing | Established |
+| **Competition** | High | Very High | Low | High |
+
+<Tip>
+  Start with one platform, master the workflow, then expand to additional platforms. Multi-platform management requires coordination and clear organization.
+</Tip>

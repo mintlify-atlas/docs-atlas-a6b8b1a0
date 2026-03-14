@@ -1,0 +1,404 @@
+---
+title: 'Threads'
+description: 'Threads platform integration and capabilities'
+icon: 'threads'
+---
+
+## Overview
+
+Threads is Meta's text-based conversation platform, closely integrated with Instagram. The Click Creators Scraper Client includes Threads support for expanding social media outreach beyond traditional Instagram engagement.
+
+<Info>
+Threads integration is currently active and available for use, leveraging similar scraping infrastructure to Instagram.
+</Info>
+
+## Platform Status
+
+<CardGroup cols={2}>
+  <Card title="Current Status" icon="check-circle">
+    **Active**
+    
+    Threads platform is enabled and available for scraping jobs.
+  </Card>
+  
+  <Card title="Platform Type" icon="threads">
+    **Secondary Platform**
+    
+    Threads shares Instagram's social graph and authentication.
+  </Card>
+</CardGroup>
+
+## Platform Configuration
+
+### Platform Identifier
+
+```typescript
+platform: 'threads'
+```
+
+### Display Configuration
+
+```typescript
+threads: {
+  label: 'Threads',
+  icon: '🧵',
+  color: '#000000'
+}
+```
+
+The Threads platform uses a black color scheme and thread emoji for visual identification throughout the UI.
+
+## Scraping Capabilities
+
+### What Can Be Scraped
+
+<CardGroup cols={2}>
+  <Card title="Follower Networks" icon="users">
+    Extract follower lists from Threads profiles
+  </Card>
+  
+  <Card title="Profile Information" icon="user">
+    Username, display name, bio, verification status
+  </Card>
+  
+  <Card title="Cross-Platform Linking" icon="link">
+    Threads profiles linked to Instagram accounts
+  </Card>
+  
+  <Card title="Engagement Metrics" icon="chart-line">
+    Follower counts and engagement indicators
+  </Card>
+</CardGroup>
+
+### Data Fields Extracted
+
+Threads scraping collects similar profile data to Instagram:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | Text | Threads profile ID |
+| `username` | Text | Threads handle (often matches Instagram) |
+| `full_name` | Text | Display name |
+| `follower_count` | Integer | Number of followers |
+| `following_count` | Integer | Number of accounts following |
+| `is_verified` | Boolean | Verification badge status |
+| `biography` | Text | Profile bio text |
+| `instagram_username` | Text | Linked Instagram account (if available) |
+| `detected_gender` | Text | Gender detection result |
+
+## Platform-Specific Features
+
+### Instagram Integration
+
+<Note>
+Threads accounts are automatically linked to Instagram profiles, allowing for coordinated cross-platform campaigns.
+</Note>
+
+Key integration features:
+- Shared authentication system
+- Cross-platform profile matching
+- Unified follower network
+- Combined campaign targeting
+
+### Threads-Specific Workflow
+
+<Steps>
+  <Step title="Create Threads Job">
+    Navigate to Configure page and select "Threads" as platform
+    
+    ```typescript
+    {
+      influencer_name: "Tech Influencer Campaign",
+      platform: "threads",
+      num_vas: 80,
+      airtable_base_id: "appXXXXXXXXXXXXXX"
+    }
+    ```
+  </Step>
+  
+  <Step title="Configure Source Accounts">
+    Add Threads profiles or Instagram handles (system auto-detects linked Threads accounts)
+  </Step>
+  
+  <Step title="Run Scraping">
+    Extract follower data from Threads network
+    - Text-focused audience
+    - Conversation-oriented users
+    - Early adopters and tech-savvy demographic
+  </Step>
+  
+  <Step title="Audience Distribution">
+    Distribute profiles to VAs using standard workflow
+  </Step>
+</Steps>
+
+## Configuration Options
+
+### Creating a Threads Scraping Job
+
+```typescript
+interface ThreadsJobConfig {
+  influencer_name: string;   // Campaign or influencer identifier
+  platform: 'threads';       // Platform identifier
+  airtable_base_id: string;  // Airtable workspace URL
+  num_vas: number;           // Number of VAs (adjustable)
+  status: 'active';          // Initial status
+}
+```
+
+### Job Configuration Details
+
+<CardGroup cols={1}>
+  <Card title="Required Configuration" icon="clipboard-list">
+    - **Influencer Name**: Threads account or campaign name
+    - **Platform**: Must be set to "Threads"
+    - **Number of VAs**: Configure based on campaign size
+    - **Airtable Base**: Threads-specific workspace (can be separate from Instagram)
+  </Card>
+</CardGroup>
+
+## Use Cases
+
+### Ideal Scenarios for Threads
+
+<Tabs>
+  <Tab title="Text-Based Engagement">
+    **Best For:**
+    - Thought leadership campaigns
+    - Community building
+    - Discussion-focused outreach
+    - Long-form content promotion
+    
+    **Audience Type:**
+    - Early adopters
+    - Tech enthusiasts
+    - Active conversationalists
+  </Tab>
+  
+  <Tab title="Cross-Platform Strategy">
+    **Best For:**
+    - Multi-platform campaigns
+    - Instagram audience expansion
+    - Meta ecosystem integration
+    - Diversified social presence
+    
+    **Benefits:**
+    - Reach Instagram users on Threads
+    - Test new platform features
+    - Build presence on emerging platform
+  </Tab>
+  
+  <Tab title="Niche Communities">
+    **Best For:**
+    - Tech industry
+    - Creative professionals
+    - News and journalism
+    - Cultural commentary
+    
+    **Advantages:**
+    - Focused discussions
+    - Higher engagement rates
+    - Quality over quantity
+  </Tab>
+</Tabs>
+
+## Limitations and Considerations
+
+### Platform Maturity
+
+<Warning>
+Threads is a newer platform compared to Instagram. Scraping infrastructure and API availability may be less mature.
+</Warning>
+
+### Technical Considerations
+
+<CardGroup cols={2}>
+  <Card title="Smaller User Base" icon="users">
+    Threads has fewer active users than Instagram. Adjust campaign expectations accordingly.
+  </Card>
+  
+  <Card title="Evolving Features" icon="code-branch">
+    Platform features and API capabilities are still being developed and may change.
+  </Card>
+  
+  <Card title="Rate Limits" icon="gauge">
+    May have different rate limiting behavior than Instagram. Monitor for throttling.
+  </Card>
+  
+  <Card title="Data Availability" icon="database">
+    Some profile fields may not be as comprehensive as Instagram.
+  </Card>
+</CardGroup>
+
+### Best Practices
+
+<Steps>
+  <Step title="Start Small">
+    Begin with smaller campaigns to test Threads scraping performance
+  </Step>
+  
+  <Step title="Cross-Reference Instagram">
+    Use Instagram data to validate Threads profile information
+  </Step>
+  
+  <Step title="Monitor Engagement">
+    Track response rates and adjust strategy based on platform-specific metrics
+  </Step>
+  
+  <Step title="Respect Platform Culture">
+    Threads emphasizes text-based conversation - tailor outreach accordingly
+  </Step>
+</Steps>
+
+## Example Campaign
+
+### Tech Product Launch on Threads
+
+**Scenario:** Launch a developer tool with Threads audience outreach
+
+<Steps>
+  <Step title="Identify Tech Influencers">
+    Find active Threads accounts in tech space:
+    - @tech_creator (500K followers)
+    - @dev_community (300K followers)
+    - @startup_news (250K followers)
+  </Step>
+  
+  <Step title="Create Threads Job">
+    ```typescript
+    {
+      influencer_name: "Developer Tool Launch",
+      platform: "threads",
+      num_vas: 40,  // Smaller initial campaign
+      airtable_base_id: "appThreadsCampaign"
+    }
+    ```
+  </Step>
+  
+  <Step title="Extract Engaged Users">
+    - Focus on active commenters
+    - Target tech-interested audience
+    - Filter for relevant demographics
+  </Step>
+  
+  <Step title="Personalized Outreach">
+    - 40 VAs handling 100 profiles each
+    - Text-based, conversation-focused messages
+    - Offer value through discussion, not just promotion
+  </Step>
+</Steps>
+
+**Expected Results:**
+- 10,000+ tech-focused profiles scraped
+- 4,000 profiles for initial campaign
+- Higher engagement rate due to platform culture
+- Quality conversations over quantity
+
+## API Integration
+
+### Threads-Specific Endpoints
+
+Threads uses the same API endpoints as Instagram with platform-specific parameters:
+
+```bash
+POST /api/scrape-followers
+{
+  "accounts": ["threads_username"],
+  "platform": "threads",
+  "targetGender": "male"
+}
+```
+
+<Note>
+API responses include Threads-specific metadata and cross-platform linking information.
+</Note>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Threads Profile Not Found">
+    **Possible Causes:**
+    - User hasn't created Threads account despite having Instagram
+    - Username differs between Instagram and Threads
+    - Profile is private or restricted
+    
+    **Solutions:**
+    - Verify account exists on Threads app
+    - Check if username matches Instagram handle
+    - Ensure source account is public
+  </Accordion>
+  
+  <Accordion title="Limited Profile Data">
+    **Possible Causes:**
+    - Threads API provides less data than Instagram
+    - New accounts with minimal information
+    - Privacy settings limiting data access
+    
+    **Solutions:**
+    - Accept that Threads data may be less comprehensive
+    - Supplement with Instagram profile data where available
+    - Focus on core fields: username, bio, follower count
+  </Accordion>
+  
+  <Accordion title="Scraping Rate Limits">
+    **Possible Causes:**
+    - Threads has different rate limiting than Instagram
+    - Platform protecting new infrastructure
+    
+    **Solutions:**
+    - Reduce scraping frequency
+    - Implement longer delays between requests
+    - Contact support for guidance on optimal scraping patterns
+  </Accordion>
+</AccordionGroup>
+
+## Comparison with Instagram
+
+### Key Differences
+
+| Feature | Instagram | Threads |
+|---------|-----------|----------|
+| **User Base** | 2B+ users | Growing (smaller) |
+| **Content Type** | Visual (photos/videos) | Text-based |
+| **API Maturity** | Established | Developing |
+| **Data Richness** | Comprehensive | Core fields |
+| **Engagement Style** | Likes/comments on media | Text conversations |
+| **Best For** | Visual brands, lifestyle | Thought leadership, discussions |
+
+### When to Use Threads vs Instagram
+
+<CardGroup cols={2}>
+  <Card title="Use Instagram When..." icon="instagram">
+    - Large-scale campaigns (10k+ profiles)
+    - Visual content is central
+    - Established audience targeting
+    - Maximum data fidelity needed
+  </Card>
+  
+  <Card title="Use Threads When..." icon="threads">
+    - Text/conversation-focused campaigns
+    - Tech or early-adopter audience
+    - Testing new platform features
+    - Building thought leadership
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Create Threads Job" icon="plus" href="/quickstart">
+    Set up your first Threads scraping campaign
+  </Card>
+  
+  <Card title="Platform Comparison" icon="chart-mixed" href="/guides/multi-platform">
+    Learn which platform fits your campaign goals
+  </Card>
+  
+  <Card title="Multi-Platform Strategy" icon="layer-group" href="/guides/multi-platform">
+    Combine Instagram and Threads for maximum reach
+  </Card>
+  
+  <Card title="Job Management" icon="tasks" href="/guides/creating-jobs">
+    Monitor and optimize your Threads campaigns
+  </Card>
+</CardGroup>

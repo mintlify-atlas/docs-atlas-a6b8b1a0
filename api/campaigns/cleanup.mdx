@@ -1,0 +1,368 @@
+---
+title: 'Cleanup Old Campaigns'
+description: 'Remove campaigns older than 7 days and free unused profiles back to the pool'
+---
+
+## Overview
+
+The Cleanup endpoint removes campaigns that are 7+ days old, deletes their assignments, and marks their profiles as unused in the global pool. This maintains database efficiency and allows profiles to be reused in future campaigns.
+
+## Endpoint
+
+<ParamField path="method" type="string" default="POST">
+  POST
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  `/api/cleanup`
+</ParamField>
+
+## Request
+
+No request body or parameters required. The endpoint automatically identifies and cleans up campaigns older than 7 days.
+
+### Request Example
+
+```bash
+POST /api/cleanup
+```
+
+<Note>
+This endpoint should be run as a scheduled cron job, not called manually from the UI.
+</Note>
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates whether the cleanup completed successfully
+</ResponseField>
+
+<ResponseField name="campaigns_cleaned" type="number" required>
+  Number of old campaigns removed
+</ResponseField>
+
+<ResponseField name="profiles_freed" type="number" required>
+  Total number of profiles marked as unused and returned to the pool
+</ResponseField>
+
+### Success Response Example
+
+```json
+{
+  "success": true,
+  "campaigns_cleaned": 5,
+  "profiles_freed": 72000
+}
+```
+
+### No Cleanup Needed Example
+
+```json
+{
+  "success": true,
+  "campaigns_cleaned": 0,
+  "profiles_freed": 0,
+  "message": "No campaigns older than 7 days found"
+}
+```
+
+### Error Response Example
+
+```json
+{
+  "success": false,
+  "error": "Database connection failed",
+  "campaigns_cleaned": 0
+}
+```
+
+## Cleanup Process
+
+The cleanup follows these steps:
+
+1. **Identify Old Campaigns** - Find campaigns where `campaign_date < NOW() - 7 days`
+2. **Fetch Assigned Usernames** - Retrieve all usernames from `daily_assignments` for old campaigns
+3. **Mark Profiles as Unused** - Set `used = false` in `global_usernames` table
+4. **Delete Assignments** - Remove records from `daily_assignments` table
+5. **Delete Campaigns** - Remove campaign records from `campaigns` table
+
+```python
+# Simplified cleanup logic
+old_campaigns = get_campaigns_older_than(days=7)
+
+for campaign in old_campaigns:
+    # Get all assigned usernames
+    usernames = get_assignments(campaign.campaign_id)
+    
+    # Mark as unused in global pool
+    mark_usernames_unused(usernames)
+    
+    # Delete assignments
+    delete_assignments(campaign.campaign_id)
+    
+    # Delete campaign
+    delete_campaign(campaign.campaign_id)
+```
+
+## Campaign Lifecycle
+
+Understanding the 7-day lifecycle:
+
+| Day | Status | Action |
+|-----|--------|--------|
+| Day 0 | Created | Campaign assigned to VAs |
+| Day 1-6 | Active | VAs working on profiles |
+| Day 7 | Eligible | Campaign can be cleaned up |
+| Day 8+ | Cleaned | Profiles freed, campaign deleted |
+
+<Warning>
+Profiles are permanently removed from campaigns after cleanup. Ensure VAs have completed their work before the 7-day window expires.
+</Warning>
+
+## Cron Job Setup
+
+The cleanup should run daily at 2 AM to maintain database health.
+
+<CodeGroup>
+```bash Cron Configuration
+# Add to crontab
+crontab -e
+
+# Run cleanup daily at 2 AM
+0 2 * * * curl -X POST http://localhost:5001/api/cleanup
+```
+
+```bash Systemd Timer (Linux)
+# Create /etc/systemd/system/campaign-cleanup.service
+[Unit]
+Description=Campaign Cleanup Service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/curl -X POST http://localhost:5001/api/cleanup
+
+# Create /etc/systemd/system/campaign-cleanup.timer
+[Unit]
+Description=Run campaign cleanup daily at 2 AM
+
+[Timer]
+OnCalendar=daily
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+
+# Enable the timer
+sudo systemctl enable campaign-cleanup.timer
+sudo systemctl start campaign-cleanup.timer
+```
+
+```python Python Scheduler
+from apscheduler.schedulers.blocking import BlockingScheduler
+import requests
+
+def cleanup_campaigns():
+    response = requests.post('http://localhost:5001/api/cleanup')
+    data = response.json()
+    print(f"Cleaned {data['campaigns_cleaned']} campaigns")
+    print(f"Freed {data['profiles_freed']} profiles")
+
+scheduler = BlockingScheduler()
+scheduler.add_job(cleanup_campaigns, 'cron', hour=2, minute=0)
+scheduler.start()
+```
+
+```javascript Node.js Cron
+const cron = require('node-cron');
+const axios = require('axios');
+
+// Run daily at 2 AM
+cron.schedule('0 2 * * *', async () => {
+  try {
+    const response = await axios.post('http://localhost:5001/api/cleanup');
+    console.log(`Cleaned ${response.data.campaigns_cleaned} campaigns`);
+    console.log(`Freed ${response.data.profiles_freed} profiles`);
+  } catch (error) {
+    console.error('Cleanup failed:', error);
+  }
+});
+```
+</CodeGroup>
+
+## Database Operations
+
+The cleanup performs these SQL operations:
+
+### 1. Find Old Campaigns
+
+```sql
+SELECT campaign_id, campaign_date, total_assigned
+FROM campaigns
+WHERE campaign_date < CURRENT_DATE - INTERVAL '7 days';
+```
+
+### 2. Get Assigned Usernames
+
+```sql
+SELECT DISTINCT username
+FROM daily_assignments
+WHERE campaign_id IN (
+  SELECT campaign_id 
+  FROM campaigns 
+  WHERE campaign_date < CURRENT_DATE - INTERVAL '7 days'
+);
+```
+
+### 3. Mark Profiles as Unused
+
+```sql
+UPDATE global_usernames
+SET used = false
+WHERE username IN (
+  SELECT username 
+  FROM daily_assignments 
+  WHERE campaign_id = 'old-campaign-id'
+);
+```
+
+### 4. Delete Assignments
+
+```sql
+DELETE FROM daily_assignments
+WHERE campaign_id IN (
+  SELECT campaign_id 
+  FROM campaigns 
+  WHERE campaign_date < CURRENT_DATE - INTERVAL '7 days'
+);
+```
+
+### 5. Delete Campaigns
+
+```sql
+DELETE FROM campaigns
+WHERE campaign_date < CURRENT_DATE - INTERVAL '7 days';
+```
+
+## Performance Considerations
+
+<Note>
+Cleanup operations are performed in transactions to ensure data consistency.
+</Note>
+
+**Typical cleanup metrics:**
+- **Campaigns per cleanup:** 1-2 (running daily)
+- **Profiles freed per campaign:** 14,400
+- **Total operation time:** 5-15 seconds
+- **Database rows deleted:** ~14,400-28,800 per run
+
+**Optimization strategies:**
+- Batch UPDATE operations (500 usernames at a time)
+- Use database indexes on `campaign_date` and `campaign_id`
+- Run during low-traffic hours (2 AM)
+- Use VACUUM (PostgreSQL) after large deletions
+
+## Monitoring and Logging
+
+Recommended logging for cleanup operations:
+
+```python
+import logging
+
+def cleanup_old_campaigns():
+    logger = logging.getLogger('campaign_cleanup')
+    
+    try:
+        old_campaigns = get_old_campaigns()
+        logger.info(f"Found {len(old_campaigns)} campaigns to clean")
+        
+        total_freed = 0
+        for campaign in old_campaigns:
+            profiles = cleanup_campaign(campaign.id)
+            total_freed += profiles
+            logger.info(f"Cleaned campaign {campaign.id}: {profiles} profiles freed")
+        
+        logger.info(f"Cleanup complete: {len(old_campaigns)} campaigns, {total_freed} profiles")
+        
+        return {
+            'success': True,
+            'campaigns_cleaned': len(old_campaigns),
+            'profiles_freed': total_freed
+        }
+        
+    except Exception as e:
+        logger.error(f"Cleanup failed: {str(e)}")
+        return {'success': False, 'error': str(e)}
+```
+
+## Error Handling
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Database deadlock | Concurrent cleanup operations | Ensure only one cleanup runs at a time |
+| Foreign key constraint | Orphaned assignments | Check database integrity before cleanup |
+| Transaction timeout | Too many campaigns to clean | Reduce batch size or increase timeout |
+| Partial cleanup | Process interrupted mid-operation | Use transactions to ensure atomicity |
+
+## Verification
+
+After cleanup, verify the results:
+
+```sql
+-- Check no campaigns older than 7 days
+SELECT COUNT(*)
+FROM campaigns
+WHERE campaign_date < CURRENT_DATE - INTERVAL '7 days';
+-- Expected: 0
+
+-- Check no orphaned assignments
+SELECT COUNT(*)
+FROM daily_assignments da
+LEFT JOIN campaigns c ON da.campaign_id = c.campaign_id
+WHERE c.campaign_id IS NULL;
+-- Expected: 0
+
+-- Check unused profile count increased
+SELECT COUNT(*)
+FROM global_usernames
+WHERE used = false;
+-- Should increase by profiles_freed amount
+```
+
+## Impact on System
+
+**Benefits of regular cleanup:**
+- Maintains database performance
+- Prevents table bloat
+- Allows profile reuse (important for small target audiences)
+- Keeps campaign history manageable
+
+**Capacity calculations:**
+- **Daily campaigns:** 1 campaign × 14,400 profiles = 14,400 profiles/day
+- **7-day retention:** 7 campaigns × 14,400 = 100,800 active profiles
+- **After cleanup:** Profiles returned to pool for reuse
+- **Pool requirement:** Minimum 14,400 unused profiles needed for next campaign
+
+## Related Endpoints
+
+- [Daily Selection](/api/campaigns/daily-selection) - Creates new campaigns
+- [Distribute Profiles](/api/campaigns/distribute) - Distributes profiles to VAs
+- [Airtable Sync](/api/campaigns/airtable-sync) - Syncs profiles to Airtable
+
+## Best Practices
+
+1. **Run during off-hours** - Schedule cleanup at 2 AM to avoid conflicts
+2. **Monitor cleanup logs** - Track campaigns cleaned and profiles freed
+3. **Set up alerts** - Notify if cleanup fails for 2+ consecutive days
+4. **Database backups** - Ensure backups run before cleanup
+5. **Test in staging** - Verify cleanup logic with test data first
+6. **Keep history** - Consider archiving campaign data before deletion
+
+## Real-World Usage
+
+Production statistics:
+- **Cleanup frequency:** Daily at 2:00 AM UTC
+- **Average campaigns cleaned:** 1-2 per day
+- **Average profiles freed:** 14,400-28,800 per day
+- **Operation duration:** 8-12 seconds
+- **Success rate:** 99.9% (with error handling)

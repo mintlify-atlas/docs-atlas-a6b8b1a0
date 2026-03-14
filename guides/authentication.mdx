@@ -1,0 +1,292 @@
+---
+title: 'Authentication Guide'
+description: 'Learn how to authenticate and manage your session in the Click Creators Scraper Client'
+icon: 'lock'
+---
+
+## Overview
+
+The Click Creators Scraper Client uses a simple yet secure three-factor authentication system with username, password, and OTP (One-Time Password). Authentication state is managed through React Context and persisted in session storage.
+
+<Note>
+  Authentication credentials are configured via environment variables and validated on the client side. Session persistence uses `sessionStorage`, meaning users stay logged in during navigation but must re-authenticate after closing the browser.
+</Note>
+
+## Authentication Flow
+
+The authentication system is built with the following components:
+
+- **AuthContext** (`contexts/auth-context.tsx`) - Manages authentication state
+- **Login Page** (`app/callum/page.tsx`) - Handles credential validation
+- **Session Storage** - Persists authentication across page navigations
+
+### How It Works
+
+<Steps>
+  <Step title="Initial Load">
+    When the application loads, the `AuthProvider` checks `sessionStorage` for an existing authentication token:
+    
+    ```typescript
+    useEffect(() => {
+      const authState = sessionStorage.getItem('isAuthenticated')
+      if (authState === 'true') {
+        setIsAuthenticated(true)
+      }
+      setIsLoading(false)
+    }, [])
+    ```
+  </Step>
+
+  <Step title="Credential Entry">
+    Users enter three pieces of information:
+    - **Username** - Text input field
+    - **Password** - Password input field
+    - **OTP** - 6-digit code with visual input slots
+  </Step>
+
+  <Step title="Validation">
+    Credentials are validated against environment variables:
+    
+    ```typescript
+    const validUsername = process.env.NEXT_PUBLIC_LOGIN_USERNAME
+    const validPassword = process.env.NEXT_PUBLIC_LOGIN_PASSWORD
+    const validOTP = process.env.NEXT_PUBLIC_LOGIN_OTP
+
+    if (username === validUsername && 
+        password === validPassword && 
+        otp === validOTP) {
+      login() // Set authentication state
+      router.push('/configure')
+    }
+    ```
+  </Step>
+
+  <Step title="Session Creation">
+    Upon successful authentication, the session is stored:
+    
+    ```typescript
+    const login = () => {
+      setIsAuthenticated(true)
+      sessionStorage.setItem('isAuthenticated', 'true')
+    }
+    ```
+  </Step>
+</Steps>
+
+## Logging In
+
+### Step 1: Navigate to Login Page
+
+Access the login page at `/callum`:
+
+```
+http://localhost:3000/callum
+```
+
+### Step 2: Enter Credentials
+
+<Accordion title="Username Field">
+  Enter the username configured in your `.env.local` file:
+  
+  ```bash
+  NEXT_PUBLIC_LOGIN_USERNAME=your-username
+  ```
+  
+  The username field accepts any text input and is case-sensitive.
+</Accordion>
+
+<Accordion title="Password Field">
+  Enter the password configured in your environment:
+  
+  ```bash
+  NEXT_PUBLIC_LOGIN_PASSWORD=your-password
+  ```
+  
+  The password field masks input for security.
+</Accordion>
+
+<Accordion title="OTP Field">
+  Enter the 6-digit OTP code configured in your environment:
+  
+  ```bash
+  NEXT_PUBLIC_LOGIN_OTP=123456
+  ```
+  
+  The OTP field provides a visual input with separated digit slots for better user experience.
+</Accordion>
+
+### Step 3: Submit Login
+
+Click the **Login** button to authenticate. Upon successful validation:
+
+- Authentication state is set to `true`
+- Session is stored in `sessionStorage`
+- User is redirected to `/configure` (job configuration page)
+
+<Warning>
+  If credentials are incorrect, an error message "Invalid credentials. Please try again." will appear below the form.
+</Warning>
+
+## Session Management
+
+### Session Persistence
+
+The application uses `sessionStorage` for authentication persistence:
+
+- **Persists**: Across page navigation within the same browser tab
+- **Clears**: When browser tab is closed or browser is closed
+
+<Tip>
+  Session storage provides security by automatically clearing authentication when the browser session ends, reducing risk of unauthorized access.
+</Tip>
+
+### Automatic Redirects
+
+The authentication system includes smart redirect logic:
+
+```typescript
+useEffect(() => {
+  if (!isLoading && isAuthenticated) {
+    router.push('/configure')
+  }
+}, [isAuthenticated, isLoading, router])
+```
+
+- **Already authenticated users** accessing `/callum` are automatically redirected to `/configure`
+- **Unauthenticated users** accessing protected routes are redirected to login
+
+## Using the Auth Context
+
+### In Your Components
+
+Access authentication state and methods using the `useAuth` hook:
+
+```typescript
+import { useAuth } from '@/contexts/auth-context'
+
+function MyComponent() {
+  const { isAuthenticated, login, logout, isLoading } = useAuth()
+  
+  if (isLoading) {
+    return <p>Loading...</p>
+  }
+  
+  if (!isAuthenticated) {
+    return <p>Please log in</p>
+  }
+  
+  return <div>Welcome, authenticated user!</div>
+}
+```
+
+### Auth Context Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `isAuthenticated` | `boolean` | Current authentication state |
+| `isLoading` | `boolean` | Loading state during auth check |
+| `login()` | `function` | Sets authenticated state and stores session |
+| `logout()` | `function` | Clears authenticated state and session |
+
+## Logging Out
+
+To implement logout functionality:
+
+```typescript
+const { logout } = useAuth()
+const router = useRouter()
+
+const handleLogout = () => {
+  logout()
+  router.push('/callum')
+}
+```
+
+The logout function:
+1. Sets `isAuthenticated` to `false`
+2. Removes `isAuthenticated` from `sessionStorage`
+3. Removes `isAuthenticated` from `localStorage` (legacy cleanup)
+
+## Environment Configuration
+
+### Required Environment Variables
+
+Add these variables to your `.env.local` file:
+
+```bash
+# Authentication Credentials
+NEXT_PUBLIC_LOGIN_USERNAME=your-username
+NEXT_PUBLIC_LOGIN_PASSWORD=your-secure-password
+NEXT_PUBLIC_LOGIN_OTP=123456
+```
+
+<Warning>
+  Never commit your `.env.local` file to version control. Add it to `.gitignore` to prevent exposing credentials.
+</Warning>
+
+### Security Considerations
+
+<Card title="Production Recommendations" icon="shield">
+  The current authentication system is designed for single-user internal use. For production deployments:
+  
+  1. Implement server-side authentication with JWT tokens
+  2. Use HTTPS to encrypt credential transmission
+  3. Implement rate limiting to prevent brute force attacks
+  4. Use a proper identity provider (Auth0, Clerk, Supabase Auth)
+  5. Store credentials securely in a secrets manager
+</Card>
+
+## Troubleshooting
+
+### "Invalid credentials" Error
+
+<Accordion title="Solution">
+  1. Verify environment variables are set correctly in `.env.local`
+  2. Restart the development server after changing environment variables:
+     ```bash
+     npm run dev
+     ```
+  3. Clear browser cache and try again
+  4. Check browser console for any JavaScript errors
+</Accordion>
+
+### Session Lost After Refresh
+
+<Accordion title="Solution">
+  This is expected behavior with `sessionStorage`. Sessions persist only during active browser sessions.
+  
+  To change this behavior, modify the auth context to use `localStorage` instead:
+  
+  ```typescript
+  // In auth-context.tsx
+  localStorage.setItem('isAuthenticated', 'true')  // Instead of sessionStorage
+  ```
+  
+  <Warning>
+    Using `localStorage` means users stay logged in even after closing the browser. Ensure this is appropriate for your security requirements.
+  </Warning>
+</Accordion>
+
+### Redirected to Login Unexpectedly
+
+<Accordion title="Solution">
+  1. Check if your session expired (browser tab closed)
+  2. Verify the auth context provider wraps your entire application
+  3. Check browser console for authentication errors
+  4. Clear `sessionStorage` manually and try logging in again:
+     ```javascript
+     sessionStorage.clear()
+     ```
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Creating Jobs" icon="plus" href="/guides/creating-jobs">
+    Learn how to create and configure scraping jobs
+  </Card>
+  
+  <Card title="Managing Campaigns" icon="calendar" href="/guides/managing-campaigns">
+    Discover how to manage and track campaigns
+  </Card>
+</CardGroup>

@@ -1,0 +1,337 @@
+---
+title: 'API Overview'
+description: 'Learn about the Click Creators Scraper API architecture and available endpoints'
+---
+
+## Architecture
+
+The Click Creators Scraper uses a **hybrid architecture** combining:
+
+- **Flask Backend API** (Python) - Handles Instagram scraping, data processing, and Airtable sync
+- **Next.js 14 Frontend** (TypeScript) - Provides the user interface and Supabase client operations
+- **Supabase PostgreSQL** - Multi-tenant database with Row Level Security (RLS)
+
+<Card title="Multi-Tenant Design" icon="database">
+  All API requests and database operations are isolated by `base_id`, enabling multiple scraping jobs to run independently without data conflicts.
+</Card>
+
+## Base URL Configuration
+
+The Flask API URL is configured via environment variable:
+
+```bash .env.local
+NEXT_PUBLIC_API_URL=http://localhost:5001
+```
+
+<Note>
+  In development, the API runs on `http://localhost:5001`. In production, update this to your deployed Flask API URL.
+</Note>
+
+The frontend API utilities automatically prepend this base URL to all endpoint paths:
+
+```typescript lib/api.ts
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
+const fullUrl = url.startsWith('http') ? url : `${apiUrl}${url}`
+```
+
+## Multi-Tenant Base ID Pattern
+
+Every API request includes a `X-Base-Id` header for data isolation:
+
+```typescript
+const headers = new Headers(config?.headers)
+headers.set('X-Base-Id', baseId)
+headers.set('Content-Type', 'application/json')
+```
+
+### Getting the Base ID
+
+Use the `useBase()` hook to access the current base ID from context:
+
+```typescript
+import { useBase } from '@/contexts/base-context'
+
+function MyComponent() {
+  const { baseId, activeJob, isLoading } = useBase()
+  
+  if (isLoading) return <Spinner />
+  if (!baseId) return <Error message="No active job" />
+  
+  // Use baseId in API calls
+  const data = await apiGet('/api/some-endpoint', baseId)
+}
+```
+
+<Warning>
+  Never hardcode or cache `base_id`. Always retrieve it from `useBase()` to ensure multi-tenant isolation.
+</Warning>
+
+## Request/Response Format
+
+### Request Headers
+
+All API requests include:
+
+| Header | Value | Description |
+|--------|-------|-------------|
+| `X-Base-Id` | `string` | Multi-tenant isolation identifier (required) |
+| `Content-Type` | `application/json` | Request body format |
+
+### Response Format
+
+API responses follow a consistent JSON structure:
+
+```json
+{
+  "success": true,
+  "data": {
+    // Response data here
+  },
+  "message": "Operation completed successfully"
+}
+```
+
+Error responses:
+
+```json
+{
+  "success": false,
+  "error": "Error message here",
+  "details": {
+    // Additional error context
+  }
+}
+```
+
+## API Client Utilities
+
+The `lib/api.ts` module provides type-safe helper functions for making API calls:
+
+### apiRequest
+
+Base function for making authenticated API requests with automatic `base_id` injection:
+
+<CodeGroup>
+```typescript Function Signature
+async function apiRequest(
+  url: string,
+  baseId: string,
+  config?: ApiRequestConfig
+): Promise<Response>
+```
+
+```typescript Example
+import { apiRequest } from '@/lib/api'
+import { useBase } from '@/contexts/base-context'
+
+const { baseId } = useBase()
+const response = await apiRequest('/api/scrape-followers', baseId, {
+  method: 'POST',
+  body: JSON.stringify({ usernames: ['user1', 'user2'] })
+})
+```
+</CodeGroup>
+
+<ParamField path="url" type="string" required>
+  The API endpoint URL (relative or absolute)
+</ParamField>
+
+<ParamField path="baseId" type="string" required>
+  The base_id for multi-tenant isolation (from `useBase()` hook)
+</ParamField>
+
+<ParamField path="config" type="ApiRequestConfig">
+  Optional fetch configuration (method, headers, body, etc.)
+</ParamField>
+
+### apiGet
+
+Make GET requests with automatic JSON parsing:
+
+<CodeGroup>
+```typescript Function Signature
+async function apiGet<T = any>(
+  url: string,
+  baseId: string,
+  config?: ApiRequestConfig
+): Promise<T>
+```
+
+```typescript Example
+import { apiGet } from '@/lib/api'
+import { useBase } from '@/contexts/base-context'
+
+const { baseId } = useBase()
+const campaigns = await apiGet('/api/campaigns', baseId)
+```
+</CodeGroup>
+
+### apiPost
+
+Make POST requests with automatic body serialization:
+
+<CodeGroup>
+```typescript Function Signature
+async function apiPost<T = any>(
+  url: string,
+  baseId: string,
+  body?: any,
+  config?: ApiRequestConfig
+): Promise<T>
+```
+
+```typescript Example
+import { apiPost } from '@/lib/api'
+import { useBase } from '@/contexts/base-context'
+
+const { baseId } = useBase()
+const result = await apiPost('/api/ingest', baseId, {
+  profiles: scrapedProfiles
+})
+```
+</CodeGroup>
+
+### apiPut
+
+Make PUT requests for updates:
+
+<CodeGroup>
+```typescript Function Signature
+async function apiPut<T = any>(
+  url: string,
+  baseId: string,
+  body?: any,
+  config?: ApiRequestConfig
+): Promise<T>
+```
+
+```typescript Example
+import { apiPut } from '@/lib/api'
+import { useBase } from '@/contexts/base-context'
+
+const { baseId } = useBase()
+const updated = await apiPut('/api/campaigns/123', baseId, {
+  status: 'completed'
+})
+```
+</CodeGroup>
+
+### apiDelete
+
+Make DELETE requests:
+
+<CodeGroup>
+```typescript Function Signature
+async function apiDelete<T = any>(
+  url: string,
+  baseId: string,
+  config?: ApiRequestConfig
+): Promise<T>
+```
+
+```typescript Example
+import { apiDelete } from '@/lib/api'
+import { useBase } from '@/contexts/base-context'
+
+const { baseId } = useBase()
+const result = await apiDelete('/api/campaigns/123', baseId)
+```
+</CodeGroup>
+
+## Available Endpoints
+
+### Scraping Operations
+
+<Card title="POST /api/scrape-followers" icon="instagram" href="/api/profiles/scrape-followers">
+  Scrape Instagram followers from source accounts with gender filtering
+</Card>
+
+<Card title="POST /api/ingest" icon="database" href="/api/profiles/ingest">
+  Ingest scraped profiles into database with deduplication
+</Card>
+
+### Campaign Management
+
+<Card title="POST /api/daily-selection" icon="calendar" href="/api/campaigns/daily-selection">
+  Create campaign and select 14,400 unused profiles
+</Card>
+
+<Card title="POST /api/distribute/{campaign_id}" icon="users" href="/api/campaigns/distribute">
+  Distribute profiles to 80 VA tables
+</Card>
+
+<Card title="POST /api/airtable-sync/{campaign_id}" icon="table" href="/api/campaigns/airtable-sync">
+  Sync profiles to Airtable for VA access
+</Card>
+
+### Maintenance
+
+<Card title="POST /api/cleanup" icon="trash" href="/api/campaigns/cleanup">
+  Cleanup 7-day old campaigns and free profiles
+</Card>
+
+## Error Handling
+
+All API utilities throw errors that should be caught and handled:
+
+```typescript
+import { apiPost } from '@/lib/api'
+import { useBase } from '@/contexts/base-context'
+import { useToast } from '@/hooks/use-toast'
+
+const { baseId } = useBase()
+const { toast } = useToast()
+
+try {
+  const result = await apiPost('/api/scrape-followers', baseId, {
+    accounts: sourceAccounts,
+    targetGender: 'male'
+  })
+  
+  toast({
+    title: 'Success',
+    description: `Scraped ${result.data.totalFiltered} profiles`
+  })
+} catch (error) {
+  toast({
+    title: 'Error',
+    description: error instanceof Error ? error.message : 'Failed to scrape',
+    variant: 'destructive'
+  })
+}
+```
+
+### Common Error Cases
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `base_id is required` | Missing or null baseId | Ensure `useBase()` returns a valid baseId |
+| `401 Unauthorized` | Invalid API credentials | Check Supabase/Airtable API keys |
+| `404 Not Found` | Invalid endpoint | Verify endpoint path is correct |
+| `500 Server Error` | Backend API issue | Check Flask API logs |
+
+## Rate Limiting
+
+<Warning>
+  The Airtable API has rate limits (5 requests/second). The backend includes built-in delays to prevent exceeding these limits.
+</Warning>
+
+When syncing large batches to Airtable:
+
+```python
+# Backend implements automatic rate limiting
+for batch in batches:
+    sync_to_airtable(batch)
+    time.sleep(0.2)  # 200ms delay between batches
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/api/authentication">
+    Learn about the authentication system and session management
+  </Card>
+  <Card title="Endpoints Reference" icon="book" href="/api/overview">
+    Detailed documentation for all API endpoints
+  </Card>
+</CardGroup>

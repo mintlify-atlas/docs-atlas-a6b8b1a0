@@ -1,0 +1,320 @@
+---
+title: 'Ingest Profiles'
+description: 'Save scraped profiles to database with automatic deduplication'
+---
+
+## Overview
+
+The `/api/ingest` endpoint saves scraped Instagram profiles to the database with automatic deduplication. It stores full profile details in `raw_scraped_profiles` and maintains a deduplicated username pool in `global_usernames`.
+
+<Note>
+  This endpoint is automatically triggered after the scraping phase completes. It handles the ingestion phase (60-80% of the overall workflow).
+</Note>
+
+## Endpoint
+
+```
+POST /api/ingest
+```
+
+**Base URL:** `http://localhost:5001` (configurable via `NEXT_PUBLIC_API_URL`)
+
+## Request Headers
+
+<ParamField header="X-Base-Id" type="string" required>
+  The base_id for multi-tenant isolation. Automatically injected when using the `apiPost` helper function.
+</ParamField>
+
+<ParamField header="Content-Type" type="string" default="application/json">
+  Must be set to `application/json`
+</ParamField>
+
+## Request Body
+
+<ParamField body="profiles" type="array" required>
+  Array of Instagram profile objects to ingest. Each profile should contain:
+  
+  - `id` (string, required) - Instagram user ID (used as primary key)
+  - `username` (string, required) - Instagram username
+  - `full_name` (string, optional) - User's full name
+  - `follower_count` (number, optional) - Number of followers
+  - `following_count` (number, optional) - Number of following
+  - `post_count` (number, optional) - Number of posts
+  - `is_verified` (boolean, optional) - Verification status
+  - `is_private` (boolean, optional) - Privacy status
+  - `biography` (string, optional) - Profile bio
+  - `url` (string, optional) - Instagram profile URL
+  - `detected_gender` (string, optional) - Gender detected from name
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the ingestion completed successfully
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Human-readable status message
+</ResponseField>
+
+<ResponseField name="stats" type="object">
+  Statistics about the ingestion operation
+  
+  <ResponseField name="stats.total_processed" type="number">
+    Total number of profiles processed
+  </ResponseField>
+  
+  <ResponseField name="stats.new_profiles" type="number">
+    Number of new profiles added to the database
+  </ResponseField>
+  
+  <ResponseField name="stats.duplicates" type="number">
+    Number of duplicate profiles skipped
+  </ResponseField>
+</ResponseField>
+
+## Example Request
+
+<CodeGroup>
+
+```typescript Client (with apiPost helper)
+import { apiPost } from '@/lib/api'
+import { useBase } from '@/contexts/base-context'
+
+const { baseId } = useBase()
+
+const response = await apiPost(
+  '/api/ingest',
+  baseId,
+  {
+    profiles: [
+      {
+        id: "123456789",
+        username: "johnsmith",
+        full_name: "John Smith",
+        follower_count: 1250,
+        following_count: 450,
+        post_count: 89,
+        is_verified: false,
+        is_private: false,
+        biography: "Sports enthusiast",
+        url: "https://www.instagram.com/johnsmith",
+        detected_gender: "male"
+      },
+      // ... more profiles
+    ]
+  }
+)
+
+console.log(`Added ${response.stats.new_profiles} new profiles`)
+console.log(`Skipped ${response.stats.duplicates} duplicates`)
+```
+
+```bash cURL
+curl -X POST http://localhost:5001/api/ingest \
+  -H "Content-Type: application/json" \
+  -H "X-Base-Id: your-base-id" \
+  -d '{
+    "profiles": [
+      {
+        "id": "123456789",
+        "username": "johnsmith",
+        "full_name": "John Smith",
+        "follower_count": 1250,
+        "detected_gender": "male"
+      }
+    ]
+  }'
+```
+
+```javascript Fetch
+const response = await fetch('http://localhost:5001/api/ingest', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Base-Id': 'your-base-id'
+  },
+  body: JSON.stringify({
+    profiles: [
+      {
+        id: "123456789",
+        username: "johnsmith",
+        full_name: "John Smith",
+        follower_count: 1250,
+        detected_gender: "male"
+      }
+    ]
+  })
+})
+
+const data = await response.json()
+```
+
+</CodeGroup>
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "message": "Profiles ingested successfully",
+  "stats": {
+    "total_processed": 450,
+    "new_profiles": 380,
+    "duplicates": 70
+  }
+}
+```
+
+## Workflow
+
+The ingestion workflow follows these steps:
+
+1. **Receive Profiles** - API receives array of profile objects
+2. **Validate Data** - Checks required fields (id, username)
+3. **Save to Raw Table** - Inserts profiles into `raw_scraped_profiles` with all details
+4. **Deduplicate Usernames** - Checks `global_usernames` table for existing usernames
+5. **Update Username Pool** - Adds new usernames to `global_usernames` with `used = false`
+6. **Track Base ID** - Associates profiles with `base_id` for multi-tenant isolation
+7. **Return Statistics** - Returns counts of new vs. duplicate profiles
+
+<Note>
+  The deduplication strategy uses a two-table approach:
+  - **raw_scraped_profiles** - Keeps all scraped data for reference
+  - **global_usernames** - Maintains unique usernames for campaign assignment
+</Note>
+
+## Database Impact
+
+### Tables Modified
+
+**raw_scraped_profiles**
+```sql
+CREATE TABLE raw_scraped_profiles (
+  id TEXT PRIMARY KEY,
+  username TEXT,
+  full_name TEXT,
+  follower_count INTEGER,
+  following_count INTEGER,
+  post_count INTEGER,
+  is_verified BOOLEAN,
+  is_private BOOLEAN,
+  biography TEXT,
+  url TEXT,
+  detected_gender TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**global_usernames**
+```sql
+CREATE TABLE global_usernames (
+  username TEXT PRIMARY KEY,
+  used BOOLEAN DEFAULT FALSE,
+  base_id TEXT,
+  job_id UUID,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+## Deduplication Logic
+
+The endpoint implements intelligent deduplication:
+
+1. **Primary Key Check** - Uses Instagram `id` as primary key in `raw_scraped_profiles`
+2. **Username Uniqueness** - Enforces unique constraint on `username` in `global_usernames`
+3. **Conflict Resolution** - Skips duplicates and increments duplicate counter
+4. **Cross-Job Deduplication** - Prevents same username from being used across multiple jobs
+
+<Warning>
+  Duplicate usernames are silently skipped. If you need to update existing profiles, you must explicitly handle updates in your application logic.
+</Warning>
+
+## Error Handling
+
+Common error scenarios:
+
+<Warning>
+  **Missing Required Fields**
+  
+  Each profile must include `id` and `username`. Profiles missing these fields will cause the request to fail.
+</Warning>
+
+<Warning>
+  **Database Connection Error**
+  
+  Ensure your Supabase connection is configured correctly with `SUPABASE_URL` and `SUPABASE_KEY` environment variables.
+</Warning>
+
+<Warning>
+  **Base ID Missing**
+  
+  The `X-Base-Id` header is required for multi-tenant isolation. Requests without this header will fail.
+</Warning>
+
+## Performance Considerations
+
+- **Batch Size** - Optimal batch size is 500-1000 profiles per request
+- **Database Constraints** - Unique constraints on `id` and `username` are enforced at database level
+- **Transaction Safety** - All inserts are wrapped in transactions to ensure consistency
+- **Indexing** - Both tables are indexed on primary keys for fast lookups
+
+## Best Practices
+
+1. **Batch Processing** - Ingest profiles in batches rather than one at a time
+2. **Error Recovery** - Implement retry logic for transient database errors
+3. **Progress Tracking** - Show ingestion progress (60-80%) to users during the operation
+4. **Validate Before Sending** - Ensure all profiles have required fields before submitting
+5. **Monitor Statistics** - Track new_profiles vs. duplicates ratio to gauge scraping quality
+
+## Integration Example
+
+Complete scraping and ingestion workflow:
+
+```typescript
+import { apiPost } from '@/lib/api'
+import { useBase } from '@/contexts/base-context'
+
+const { baseId } = useBase()
+
+// Step 1: Scrape followers
+const scrapeResponse = await apiPost(
+  '/api/scrape-followers',
+  baseId,
+  {
+    accounts: ['cristiano', 'leomessi'],
+    targetGender: 'male'
+  }
+)
+
+// Step 2: Auto-ingest results
+const ingestResponse = await apiPost(
+  '/api/ingest',
+  baseId,
+  {
+    profiles: scrapeResponse.data.accounts
+  }
+)
+
+console.log('Scraping complete:')
+console.log(`  Total scraped: ${scrapeResponse.data.totalScraped}`)
+console.log(`  After filtering: ${scrapeResponse.data.totalFiltered}`)
+console.log('\nIngestion complete:')
+console.log(`  New profiles: ${ingestResponse.stats.new_profiles}`)
+console.log(`  Duplicates: ${ingestResponse.stats.duplicates}`)
+```
+
+## Related Endpoints
+
+- [Scrape Followers](/api/profiles/scrape-followers) - Scrape Instagram profiles
+- [Username Management](/api/profiles/usernames) - Query and manage username pool
+
+## Environment Variables
+
+Required backend environment variables:
+
+```bash .env
+# Supabase Configuration
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-service-role-key
+```
